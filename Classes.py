@@ -45,57 +45,69 @@ class App(tk.Tk):
         frm_x = tk.Frame(
             master=self,
             relief=tk.RAISED,
-            borderwidth=1
+            borderwidth=0
         )
         frames.append(frm_x)
-        lbl_x = tk.Label(master=frm_x, text="x:", padx=5, pady=5)
-        ent_x_start = tk.Entry(master=frm_x, width=5)
-        ent_x_end = tk.Entry(master=frm_x, width=5)
+        lbl_x = tk.Label(master=frm_x, text="x:", padx=1, pady=1)
+        ent_x_start = tk.Entry(master=frm_x, width=3)
+        ent_x_end = tk.Entry(master=frm_x, width=3)
         ent_x_start.insert(0, "-1")
         ent_x_end.insert(0, "1")
+        lbl_x_step = tk.Label(master=frm_x, text="step:", padx=1, pady=1)
+        ent_x_step= tk.Entry(master=frm_x, width=5)
+        ent_x_step.insert(0, "0.01")
         self.widgets["x_start"] = ent_x_start
         self.widgets["x_end"] = ent_x_end
-        lbl_x.pack(padx=5, pady=5, side=tk.LEFT)
-        ent_x_start.pack(padx=5, pady=5, side=tk.LEFT)
-        ent_x_end.pack(padx=5, pady=5, side=tk.LEFT)
+        self.widgets["x_step"] = ent_x_step
+        lbl_x.pack(padx=1, pady=1, side=tk.LEFT)
+        ent_x_start.pack(padx=1, pady=1, side=tk.LEFT)
+        ent_x_end.pack(padx=1, pady=1, side=tk.LEFT)
+        lbl_x_step.pack(padx=1, pady=1, side=tk.LEFT)
+        ent_x_step.pack(padx=1, pady=1, side=tk.LEFT)
 
         # Y voltage selection frame.
         frm_y = tk.Frame(
             master=self,
             relief=tk.RAISED,
-            borderwidth=1
+            borderwidth=0
         )
         frames.append(frm_y)
-        lbl_y = tk.Label(master=frm_y, text="y:", padx=5, pady=5)
-        ent_y_start = tk.Entry(master=frm_y, width=5)
-        ent_y_end = tk.Entry(master=frm_y, width=5)
+        lbl_y = tk.Label(master=frm_y, text="y:", padx=1, pady=1)
+        ent_y_start = tk.Entry(master=frm_y, width=3)
+        ent_y_end = tk.Entry(master=frm_y, width=3)
         ent_y_start.insert(0, "-1")
         ent_y_end.insert(0, "1")
+        lbl_y_step = tk.Label(master=frm_y, text="step:", padx=1, pady=1)
+        ent_y_step= tk.Entry(master=frm_y, width=5)
+        ent_y_step.insert(0, "0.01")
         self.widgets["y_start"] = ent_y_start
         self.widgets["y_end"] = ent_y_end
-        lbl_y.pack(padx=5, pady=5, side=tk.LEFT)
-        ent_y_start.pack(padx=5, pady=5, side=tk.LEFT)
-        ent_y_end.pack(padx=5, pady=5, side=tk.LEFT)
+        self.widgets["y_step"] = ent_y_step
+        lbl_y.pack(padx=1, pady=1, side=tk.LEFT)
+        ent_y_start.pack(padx=1, pady=1, side=tk.LEFT)
+        ent_y_end.pack(padx=1, pady=1, side=tk.LEFT)
+        lbl_y_step.pack(padx=1, pady=1, side=tk.LEFT)
+        ent_y_step.pack(padx=1, pady=1, side=tk.LEFT)
 
         # Integration time frame
         frm_int = tk.Frame(
             master=self,
             relief=tk.RAISED,
-            borderwidth=1
+            borderwidth=0
         )
         frames.append(frm_int)
-        lbl_int = tk.Label(master=frm_int, text="integration time:", padx=5, pady=5)
-        ent_int = tk.Entry(master=frm_int, width=5)
+        lbl_int = tk.Label(master=frm_int, text="integration time:", padx=1, pady=1)
+        ent_int = tk.Entry(master=frm_int, width=3)
         ent_int.insert(0, "5")
         self.widgets["int_time"] = ent_int
-        lbl_int.pack(padx=5, pady=5, side=tk.LEFT)
-        ent_int.pack(padx=5, pady=5, side=tk.LEFT)
+        lbl_int.pack(padx=1, pady=5, side=tk.LEFT)
+        ent_int.pack(padx=1, pady=5, side=tk.LEFT)
 
         # Start/Interrupt scan buttons frame.
         frm_buttons = tk.Frame(
             master=self,
             relief=tk.RAISED,
-            borderwidth=1
+            borderwidth=0
         )
         frames.append(frm_buttons)
         btn_start = tk.Button(master=frm_buttons, text="Start Scan", command=self.startScanEvent)
