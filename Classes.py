@@ -111,3 +111,12 @@ class App(tk.Tk):
         for i in range(len(frames)):
             frames[i].grid(column=0, row=i)
 
+
+class ScanWindow(tk.Toplevel):
+    img = None
+    info = None
+    colors = None
+    px = 90
+
+    def __init__(self, dir, title, *args, **kwargs):
+        pass
