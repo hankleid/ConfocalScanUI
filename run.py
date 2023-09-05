@@ -1,4 +1,4 @@
 from Classes import *
 
-app = App("title")
+app = App()
 app.mainloop()
