@@ -1,4 +1,4 @@
-from Classes import *
+from MainApp import *
 
-app = App()
+app = MainApp()
 app.mainloop()
