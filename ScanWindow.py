@@ -2,6 +2,7 @@ import tkinter as tk
 import random
 import numpy as np
 import time
+import matplotlib.pyplot as plt
 
 
 class ScanWindow(tk.Toplevel):
@@ -82,16 +83,24 @@ class ScanWindow(tk.Toplevel):
         frm_scan.columnconfigure(0)
         frm_scan.rowconfigure(0)
         canvas = tk.Canvas(frm_scan, width=500, height=500, bg="black")
-        self.widgets["canvas"] = canvas
+        self.widgets["tk_canvas"] = canvas
         canvas.grid(column=0, row=0)
 
-    def measureCounts(self, V_x, V_y):
+    def takeMeasurement(self, V_x, V_y):
         ##
-        ## RETURNS A MEASUREMENT OF COUNTS.
+        ## MOVES THE SCANNING MIRROR TO (x, y) THEN RETURNS A MEASUREMENT OF COUNTS.
         ##
-        time.sleep(float(self.parent_app.widgets["int_time"].get()) * 1e-3)
-        counts = random.random()*10000 * V_x * V_y
-        return round(counts, 2)
+        int_time = float(self.parent_app.widgets["int_time"].get())
+        # move FSM
+        move = V_x * V_y
+        # Wait for the duration of integration time.
+        time.sleep(int_time * 1e-3)
+        # Take measurement from SPCM.
+        measurement = random.random()*10000 * move
+        # Adjust measurement to count/s.
+        measurement /= int_time
+
+        return abs(round(measurement, 2))
 
     def takeScan(self):
         ##
@@ -108,31 +117,56 @@ class ScanWindow(tk.Toplevel):
         # X and Y voltage axes.
         x_data = np.linspace(x_start, x_end, int((x_end - x_start) / x_step)+1)
         y_data = np.linspace(y_start, y_end, int((y_end - y_start) / y_step)+1)
-
+        print(len(x_data))
+        print(len(y_data))
         self.currently_scanning = True
 
+        # Initialize data arrays
         self.scan = np.zeros((len(x_data), len(y_data)))
-        scan_BW = np.zeros((len(x_data), len(y_data)))
-        for x_i in range(len(y_data)):
-            for y_i in range(len(x_data)):
+        scan_BW = np.zeros((len(x_data), len(y_data))) # self.scan but in range 0-1
+
+        # Initialize matplotlib figure
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        plt.ion()
+        fig.show()
+        fig.canvas.draw()
+
+        for y_i in range(len(y_data)):
+            for i in range(len(x_data)):
                 if str(self.parent_app.widgets["interrupt_button"]['state']) == "disabled":
                     # If 'Interrupt' button is pressed, stop scan.
                     break
+                
+                x_i = 0
+                # Change direction every column.
+                if y_i % 2 == 0: # Even: scan in the forward direction.
+                    x_i = i
+                else: # Odd: scan in the backward direction.
+                    x_i = -(i+1)
 
                 x = x_data[x_i]
                 y = y_data[y_i]
-                current_counts = self.measureCounts(x, y)
+
+                current_counts = self.takeMeasurement(x, y)
+
                 self.widgets["counts"].config(text=str(current_counts))
                 max_counts = max(map(max, self.scan)) # Maximum value of the 2D data array.
 
                 self.scan[x_i][y_i] = current_counts
-                # Adjust display data to dim previous data if current data is bright (contrast).
-                if current_counts >= max_counts:
-                    scan_BW = self.scan / current_counts
-                    scan_BW[x_i][y_i] = 1
-                else:
-                    scan_BW[x_i][y_i] = current_counts / max_counts
+                # # Adjust display data to dim previous data if current data is bright (contrast).
+                # if current_counts >= max_counts:
+                #     scan_BW = self.scan / current_counts
+                #     scan_BW[x_i][y_i] = 1
+                # else:
+                #     scan_BW[x_i][y_i] = current_counts / max_counts
 
+                # Plot
+                ax.clear()
+                ax.imshow(self.scan, extent=[x_start, x_end, y_start, y_end], origin='lower',
+                       cmap='gray')
+                fig.canvas.draw()
+                
                 # Update the UI... tkinter made me do it :/
                 self.update()
                 self.update_idletasks()
