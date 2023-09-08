@@ -3,12 +3,13 @@ import random
 import numpy as np
 import time
 import matplotlib.pyplot as plt
-
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from datetime import datetime
 
 class ScanWindow(tk.Toplevel):
     parent_app = None
     currently_scanning = False
-    scan = None # 2D numpy data
+    scan_data = None # 2D numpy data
     widgets = {}
     img = None
     size = 500
@@ -16,10 +17,11 @@ class ScanWindow(tk.Toplevel):
     def __init__(self, app, *args, **kwargs):
         tk.Toplevel.__init__(self, *args, **kwargs)
         self.protocol("WM_DELETE_WINDOW", self.onClosing)
-        self.title("Scan")
+        self.ID = self.generateScanID()
+        self.title("Scan "+str(len(app.subwindows)+1)+": "+self.ID)
         self.parent_app = app # Access control menu through this App object.
 
-        self.columnconfigure([0, 1], minsize=100)
+        self.columnconfigure([0, 1], minsize=200)
         self.rowconfigure(0, minsize=50)
 
         # Frame that holds the scan.
@@ -42,7 +44,7 @@ class ScanWindow(tk.Toplevel):
         self.widgets["side_info_frame"] = frm_side_info
 
         self.generateSideInfo()
-        self.generateScanCanvas()
+        self.generatePlotHolder()
 
     def generateSideInfo(self):
         ##
@@ -55,7 +57,7 @@ class ScanWindow(tk.Toplevel):
         frm_counts = tk.Frame(
             master=frm_side_info,
             relief=tk.RAISED,
-            borderwidth=1
+            borderwidth=0
         )
         sideinfo_frames.append(frm_counts)
         lbl_counts = tk.Label(master=frm_counts, text="counts:", padx=1, pady=1)
@@ -70,21 +72,33 @@ class ScanWindow(tk.Toplevel):
         lbl_counts_measure.pack(padx=1, pady=1, side=tk.BOTTOM)
 
         # Add to local grid (show).
-        frm_side_info.columnconfigure(0, minsize=50)
+        frm_side_info.columnconfigure(0, minsize=100)
         frm_side_info.rowconfigure([i for i in range(len(sideinfo_frames))], minsize=5)
         for i in range(len(sideinfo_frames)):
             sideinfo_frames[i].grid(column=0, row=i)
     
-    def generateScanCanvas(self):
+    def generatePlotHolder(self):
         ##
         ## ADDS A CANVAS (FOR VISUALIZING DATA) TO A 1X1 GRID ON THE SCAN FRAME.
         ##
         frm_scan = self.widgets["scan_frame"]
         frm_scan.columnconfigure(0)
         frm_scan.rowconfigure(0)
-        canvas = tk.Canvas(frm_scan, width=500, height=500, bg="black")
-        self.widgets["tk_canvas"] = canvas
-        canvas.grid(column=0, row=0)
+        frm_plot = tk.Frame(
+            master=frm_scan,
+            width=500,
+            height=500,
+            relief=tk.RAISED,
+            bg="black")
+        self.widgets["plot_holder"] = frm_plot
+        frm_plot.grid(column=0, row=0)
+
+    def generateScanID(self):
+        ##
+        ## RETURNS A String IN THE FORM YYYY(M)M(D)D(H)H(M)M(S)S.
+        ##
+        now = datetime.now()
+        return str(now.year)+str(now.month)+str(now.day)+str(now.hour)+str(now.minute)+str(now.second)
 
     def takeMeasurement(self, V_x, V_y):
         ##
@@ -121,17 +135,18 @@ class ScanWindow(tk.Toplevel):
         print(len(y_data))
         self.currently_scanning = True
 
-        # Initialize data arrays
-        self.scan = np.zeros((len(x_data), len(y_data)))
-        scan_BW = np.zeros((len(x_data), len(y_data))) # self.scan but in range 0-1
+        # Initialize data array.
+        self.scan_data = np.zeros((len(x_data), len(y_data)))
 
-        # Initialize matplotlib figure
-        fig = plt.figure()
+        # Initialize matplotlib figure.
+        fig = plt.figure(figsize = (7, 7))
         ax = fig.add_subplot(111)
-        plt.ion()
-        fig.show()
-        fig.canvas.draw()
+        #plt.ion()
+        canvas = FigureCanvasTkAgg(fig, master=self.widgets["plot_holder"])
+        canvas.draw()
+        canvas.get_tk_widget().pack(expand=True)
 
+        # Scan start.
         for y_i in range(len(y_data)):
             for i in range(len(x_data)):
                 if str(self.parent_app.widgets["interrupt_button"]['state']) == "disabled":
@@ -145,34 +160,30 @@ class ScanWindow(tk.Toplevel):
                 else: # Odd: scan in the backward direction.
                     x_i = -(i+1)
 
+                # Coordinates.
                 x = x_data[x_i]
                 y = y_data[y_i]
-
+                
+                # Take measurement & record data.
                 current_counts = self.takeMeasurement(x, y)
-
                 self.widgets["counts"].config(text=str(current_counts))
-                max_counts = max(map(max, self.scan)) # Maximum value of the 2D data array.
-
-                self.scan[x_i][y_i] = current_counts
-                # # Adjust display data to dim previous data if current data is bright (contrast).
-                # if current_counts >= max_counts:
-                #     scan_BW = self.scan / current_counts
-                #     scan_BW[x_i][y_i] = 1
-                # else:
-                #     scan_BW[x_i][y_i] = current_counts / max_counts
+                self.scan_data[x_i][y_i] = current_counts
 
                 # Plot
                 ax.clear()
-                ax.imshow(self.scan, extent=[x_start, x_end, y_start, y_end], origin='lower',
-                       cmap='gray')
-                fig.canvas.draw()
+                ax.imshow(self.scan_data, extent=[x_start, x_end, y_start, y_end], origin='lower', cmap='gray')
+                canvas.get_tk_widget().delete()
+                canvas.draw()
+                canvas.get_tk_widget().pack(expand=True)
                 
                 # Update the UI... tkinter made me do it :/
                 self.update()
                 self.update_idletasks()
 
-        print(self.scan)
-        print(scan_BW)
+        print(self.scan_data)
+        
+        # Scan end.
+        self.parent_app.interruptScanEvent()
         self.currently_scanning = False
 
     def onClosing(self):

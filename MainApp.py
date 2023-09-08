@@ -11,11 +11,39 @@ class MainApp(tk.Tk):
         self.title("Control Menu")
         self.generateControlMenu() # Grid is generated in this method
 
+    def disableWidgetInputs(self):
+        ##
+        ## Disables all widgets in the control menu to user input.
+        ##
+        self.widgets["start_button"].config(state='disabled')
+        self.widgets["interrupt_button"].config(state='disabled')
+        self.widgets["x_start"].config(state='readonly')
+        self.widgets["x_end"].config(state='readonly')
+        self.widgets["x_step"].config(state='readonly')
+        self.widgets["y_start"].config(state='readonly')
+        self.widgets["y_end"].config(state='readonly')
+        self.widgets["y_step"].config(state='readonly')
+        self.widgets["int_time"].config(state='readonly')
+    
+    def enableWidgetInputs(self):
+        ##
+        ## Enables all widgets in the control menu to user input.
+        ##
+        self.widgets["start_button"].config(state='active')
+        self.widgets["interrupt_button"].config(state='active')
+        self.widgets["x_start"].config(state='normal')
+        self.widgets["x_end"].config(state='normal')
+        self.widgets["x_step"].config(state='normal')
+        self.widgets["y_start"].config(state='normal')
+        self.widgets["y_end"].config(state='normal')
+        self.widgets["y_step"].config(state='normal')
+        self.widgets["int_time"].config(state='normal')
+
     def startScanEvent(self):
         ##
         ## [Event handler] STARTS SCAN.
         ##
-        self.widgets["start_button"].config(state="disabled")
+        self.disableWidgetInputs()
         self.widgets["interrupt_button"].config(state="active")
 
         print("start")
@@ -28,7 +56,7 @@ class MainApp(tk.Tk):
         ##
         ## [Event handler] INTERRUPTS SCAN.
         ##
-        self.widgets["start_button"].config(state='active')
+        self.enableWidgetInputs()
         self.widgets["interrupt_button"].config(state='disabled')
 
         print("interrupt")
