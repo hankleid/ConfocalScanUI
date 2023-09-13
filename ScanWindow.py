@@ -128,11 +128,11 @@ class ScanWindow(tk.Toplevel):
         y_end = float(parent_widgets["y_end"].get())
         y_step = float(parent_widgets["y_step"].get())
         
+        print(x_start, x_end, y_start, y_end)
+
         # X and Y voltage axes.
         x_data = np.linspace(x_start, x_end, int((x_end - x_start) / x_step)+1)
         y_data = np.linspace(y_start, y_end, int((y_end - y_start) / y_step)+1)
-        print(len(x_data))
-        print(len(y_data))
         self.currently_scanning = True
 
         # Initialize data array.
@@ -143,6 +143,7 @@ class ScanWindow(tk.Toplevel):
         ax = fig.add_subplot(111)
         #plt.ion()
         canvas = FigureCanvasTkAgg(fig, master=self.widgets["plot_holder"])
+        self.widgets["canvas"] = canvas
         canvas.draw()
         canvas.get_tk_widget().pack(expand=True)
 
@@ -169,7 +170,7 @@ class ScanWindow(tk.Toplevel):
                 self.widgets["counts"].config(text=str(current_counts))
                 self.scan_data[x_i][y_i] = current_counts
 
-                # Plot
+                # Plot.
                 ax.clear()
                 ax.imshow(self.scan_data, extent=[x_start, x_end, y_start, y_end], origin='lower', cmap='gray')
                 canvas.get_tk_widget().delete()
@@ -179,12 +180,23 @@ class ScanWindow(tk.Toplevel):
                 # Update the UI... tkinter made me do it :/
                 self.update()
                 self.update_idletasks()
-
-        print(self.scan_data)
         
         # Scan end.
         self.parent_app.interruptScanEvent()
         self.currently_scanning = False
+        # Place crosshairs in the middle of the plot (not clicking cursor) to prep for mouse event.
+        self.placeCrossHair((x_end+x_start)/2, (y_end+y_start)/2, ax, refresh=False)
+        canvas.mpl_connect('button_press_event', lambda e: self.placeCrossHair(e.xdata, e.ydata, ax))
+
+    def placeCrossHair(self, x_coord, y_coord, ax, refresh=True):
+        if refresh:
+            ax.lines.pop()
+            ax.lines.pop()
+            ax.lines.pop()
+        ax.axhline(y = y_coord, color = 'r', linestyle = '-', linewidth=1)
+        ax.axvline(x = x_coord, color = 'r', linestyle = '-', linewidth=1)
+        ax.plot([x_coord], [y_coord], "s", markersize=5.5, markerfacecolor="None", markeredgewidth=1, markeredgecolor="cyan")
+        self.widgets["canvas"].draw()
 
     def onClosing(self):
         ##
