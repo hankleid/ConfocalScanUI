@@ -168,6 +168,8 @@ class ScanWindow(tk.Toplevel):
         canvas.draw()
         canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
+        self.widgets["plot_clicker"] = None
+
     def generateScanID(self):
         ##
         ## RETURNS A String IN THE FORM YYYY(M)M(D)D(H)H(M)M(S)S.
@@ -243,7 +245,8 @@ class ScanWindow(tk.Toplevel):
         self.widgets["cursor_center_button"].configure(state="normal")
         # Place crosshairs in the middle of the plot (not clicking cursor) to prep for mouse event.
         self.placeCrosshair((self.extent[1]+self.extent[0])/2, (self.extent[3]+self.extent[2])/2, ax)
-        self.widgets["canvas"].mpl_connect('button_press_event', lambda e: self.placeCrosshair(e.xdata, e.ydata, ax, refresh=True))
+        # plot_clicker is the callback ID for the matplotlib mouse click event. Stored in widgets for future access to disconnect/reconnect.
+        self.connectPlotClicker(ax, refresh=True)
 
     def plotWithColorbar(self, autoscale=True):
         # 
@@ -282,6 +285,15 @@ class ScanWindow(tk.Toplevel):
             # Only update plot if scan is done. While scan is currently running, the plot gets refreshed often enough.
             ax = self.plotWithColorbar()
             self.placeCrosshair(self.cursor_coordinates[0], self.cursor_coordinates[1], ax)
+            self.connectPlotClicker(ax, refresh=True)
+
+    def connectPlotClicker(self, ax, refresh=False):
+        cid = self.widgets["plot_clicker"]
+        if cid:
+            self.widgets["canvas"].mpl_disconnect(cid)
+        else:
+            pass #if nothing to disconnect, do not disconnect anything
+        self.widgets["plot_clicker"] = self.widgets["canvas"].mpl_connect('button_press_event', lambda e: self.placeCrosshair(e.xdata, e.ydata, ax, refresh))
 
     def moveCursor(self):
         print("cursor move")
