@@ -11,6 +11,7 @@ from datetime import datetime
 
 class ScanWindow(tk.Toplevel):
     parent_app = None
+    ID = ""
     currently_scanning = False
     scan_data = None # 2D numpy data
     datastream = [] # Contains all the data in a flattened list, appended as the scan progresses. For internal use, like min/max.
@@ -363,7 +364,7 @@ class ScanWindow(tk.Toplevel):
         self.widgets["folder"].config(text=str(askdirectory()))
 
     def saveScan(self):
-        file_name = str(self.widgets["savename"].get())
+        file_name = self.ID + "_" + str(self.widgets["savename"].get())
         path = os.path.join(self.widgets["folder"].cget("text"),file_name)
 
         # Save data to .json file.
@@ -384,6 +385,7 @@ class ScanWindow(tk.Toplevel):
         self.placeCrosshair(self.cursor_coordinates[0], self.cursor_coordinates[1], ax)
         self.connectPlotClicker(ax, refresh=True)
 
+        print("Data file & plot saved!")
 
     def onClosing(self):
         ##
