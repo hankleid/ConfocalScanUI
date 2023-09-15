@@ -1,4 +1,7 @@
+import os
+import json
 import tkinter as tk
+from tkinter.filedialog import askdirectory
 import random
 import numpy as np
 import time
@@ -75,7 +78,7 @@ class ScanWindow(tk.Toplevel):
         ##
         frm_side_info = self.widgets["side_info_frame"]
         sideinfo_frames = []
-
+        
         # Colobar settings frame.
         frm_colorbar_settings = tk.Frame(
             master=frm_side_info,
@@ -139,9 +142,39 @@ class ScanWindow(tk.Toplevel):
         btn_cursor_center.pack(padx=1, pady=1)
         lbl_cursor_coordinates.pack(padx=1, pady=1, side=tk.BOTTOM)
 
+        # Save settings frame.
+        frm_all_save_info = tk.Frame(
+            master=frm_side_info,
+            relief=tk.RAISED,
+            borderwidth=0
+        )
+        sideinfo_frames.append(frm_all_save_info)
+        frm_savename = tk.Frame(master=frm_all_save_info, relief=tk.RAISED, borderwidth=0)
+        lbl_savename = tk.Label(master=frm_savename, text="savename:", padx=1, pady=1)
+        ent_savename = tk.Entry(master=frm_savename, width=15)
+        ent_savename.insert(0, "untitled")
+        self.widgets["savename"] = ent_savename
+        lbl_savename.pack(padx=1, pady=1, side=tk.LEFT)
+        ent_savename.pack(padx=1, pady=1, side=tk.LEFT)
+        frm_foldername = tk.Frame(master=frm_all_save_info, relief=tk.RAISED, borderwidth=0)
+        lbl_foldername_indicator = tk.Label(master=frm_foldername, text="folder:", padx=1, pady=1)       
+        lbl_foldername = tk.Label(master=frm_foldername, text=str(os.getcwd()), fg="blue", padx=1, pady=1)       
+        lbl_foldername_indicator.pack(padx=1, pady=1, side=tk.LEFT)
+        lbl_foldername.pack(padx=1, pady=1, side=tk.LEFT)
+        self.widgets["folder"] = lbl_foldername
+        frm_selectsavebuttons = tk.Frame(master=frm_all_save_info, relief=tk.RAISED, borderwidth=0)
+        btn_selectfolder = tk.Button(master=frm_selectsavebuttons, text="Select Folder", command=self.selectFolder)
+        btn_save = tk.Button(master=frm_selectsavebuttons, text="Save", command=self.saveScan)
+        self.widgets["save_button"] = btn_save
+        btn_selectfolder.pack(padx=1, pady=1)
+        btn_save.pack(padx=1, pady=1, side=tk.BOTTOM)
+        frm_savename.pack(padx=1, pady=1)
+        frm_foldername.pack(padx=1, pady=1)
+        frm_selectsavebuttons.pack(padx=1, pady=1, side=tk.BOTTOM)
+
         # Add to local grid (show).
-        frm_side_info.columnconfigure(0, minsize=100)
-        frm_side_info.rowconfigure([i for i in range(len(sideinfo_frames))], minsize=75)
+        frm_side_info.columnconfigure(0, minsize=250)
+        frm_side_info.rowconfigure([i for i in range(len(sideinfo_frames))], minsize=125)
         for i in range(len(sideinfo_frames)):
             sideinfo_frames[i].grid(column=0, row=i)
     
@@ -198,9 +231,10 @@ class ScanWindow(tk.Toplevel):
         ## TAKES A SCAN & VISUALIZES IT ON THE CANVAS.
         ##
 
-        # Disable cursor buttons while scan runs.
+        # Disable certain buttons while scan runs.
         self.widgets["cursor_move_button"].configure(state="disabled")
         self.widgets["cursor_center_button"].configure(state="disabled")
+        self.widgets["save_button"].configure(state="disabled")
 
         self.currently_scanning = True
         ax = self.fig.add_subplot(111) # Plot that updates with the scan every iteration.
@@ -243,6 +277,7 @@ class ScanWindow(tk.Toplevel):
         # Enable cursor buttons.
         self.widgets["cursor_move_button"].configure(state="normal")
         self.widgets["cursor_center_button"].configure(state="normal")
+        self.widgets["save_button"].configure(state="normal")
         # Place crosshairs in the middle of the plot (not clicking cursor) to prep for mouse event.
         self.placeCrosshair((self.extent[1]+self.extent[0])/2, (self.extent[3]+self.extent[2])/2, ax)
         # plot_clicker is the callback ID for the matplotlib mouse click event. Stored in widgets for future access to disconnect/reconnect.
@@ -323,6 +358,32 @@ class ScanWindow(tk.Toplevel):
         self.widgets["canvas"].draw()
         self.cursor_coordinates = [x_coord, y_coord]
         self.widgets["cursor_coordinates"].config(text=f"({x_coord}, {y_coord})")
+
+    def selectFolder(self):
+        self.widgets["folder"].config(text=str(askdirectory()))
+
+    def saveScan(self):
+        file_name = str(self.widgets["savename"].get())
+        path = os.path.join(self.widgets["folder"].cget("text"),file_name)
+
+        # Save data to .json file.
+        datafile = {
+            "integration_time": float(self.parent_app.widgets["int_time"].get()),
+            "x": self.x_data.tolist(),
+            "y": self.y_data.tolist(),
+            "data": self.scan_data.tolist()
+        }
+        datafile_json = json.dumps(datafile, indent=4)
+        with open(path+".json", "w") as file:   
+            file.write(datafile_json)
+
+        # Save the figure (without crosshair).
+        ax = self.plotWithColorbar(self.autoscale) # refresh the image w/o cursors.
+        self.fig.savefig(path, dpi='figure')
+        # refresh crosshair.
+        self.placeCrosshair(self.cursor_coordinates[0], self.cursor_coordinates[1], ax)
+        self.connectPlotClicker(ax, refresh=True)
+
 
     def onClosing(self):
         ##
