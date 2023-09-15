@@ -288,6 +288,10 @@ class ScanWindow(tk.Toplevel):
             self.connectPlotClicker(ax, refresh=True)
 
     def connectPlotClicker(self, ax, refresh=False):
+        #
+        # Refreshes the mouse click event handling connection to the matplotlib plot.
+        # Callback id (cid) global variable for keeping track of the current handler.
+        #
         cid = self.widgets["plot_clicker"]
         if cid:
             self.widgets["canvas"].mpl_disconnect(cid)
