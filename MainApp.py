@@ -47,10 +47,13 @@ class MainApp(tk.Tk):
         self.widgets["interrupt_button"].config(state="active")
 
         print("start")
+        for sub in self.subwindows:
+            # Clear previous scans. (There should only be max. 1 subwindow, but we loop just in case.)
+            sub.destroy()
+
         subwindow = ScanWindow(self)
         self.subwindows.append(subwindow)
         subwindow.takeScan()
-        return
     
     def interruptScanEvent(self):
         ##

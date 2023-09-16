@@ -1,6 +1,7 @@
 import os
 import json
 import tkinter as tk
+from tkinter import ttk, StringVar
 from tkinter.filedialog import askdirectory
 import random
 import numpy as np
@@ -92,17 +93,26 @@ class ScanWindow(tk.Toplevel):
         ent_max = tk.Entry(master=frm_minmax, width=5)
         ent_min.insert(0, "0")
         ent_max.insert(0, "5000")
-        ent_min.bind('<Return>', lambda e: self.changeMinMax(autoscale=False))
-        ent_max.bind('<Return>', lambda e: self.changeMinMax(autoscale=False))
+        ent_min.bind('<Return>', lambda e: self.changeColorbar(autoscale=False))
+        ent_max.bind('<Return>', lambda e: self.changeColorbar(autoscale=False))
         self.widgets["user_min"] = ent_min
         self.widgets["user_max"] = ent_max
         ent_min.pack(padx=1, pady=1, side=tk.LEFT)
         ent_max.pack(padx=1, pady=1, side=tk.LEFT)
         lbl_colorbar_settings = tk.Label(master=frm_colorbar_settings, text="colorbar min/max:", padx=1, pady=1)
-        btn_autoscale = tk.Button(master=frm_colorbar_settings, text="Autoscale", command=lambda: self.changeMinMax(autoscale=True))
+        btn_autoscale = tk.Button(master=frm_colorbar_settings, text="Autoscale", command=lambda: self.changeColorbar(autoscale=True))
+        self.widgets["colorbar_palette"] = StringVar()
+        cbox_colors = ttk.Combobox(master=frm_colorbar_settings,
+                                   textvariable=self.widgets["colorbar_palette"],
+                                   values=["gray", "viridis", "plasma", "inferno", "magma", "cividis"],
+                                   state="readonly",
+                                   width=10)
+        cbox_colors.current(0) # Set default dropdown value to the first value of ^ list.
+        cbox_colors.bind("<<ComboboxSelected>>", lambda e: self.changeColorbar(self.autoscale))
         lbl_colorbar_settings.pack(padx=1, pady=1)
         frm_minmax.pack(padx=1, pady=1)
         btn_autoscale.pack(padx=1, pady=1)
+        cbox_colors.pack(padx=1, pady=1, side=tk.BOTTOM)
 
         # Counts indicator frame.
         frm_counts = tk.Frame(
@@ -152,7 +162,7 @@ class ScanWindow(tk.Toplevel):
         sideinfo_frames.append(frm_all_save_info)
         frm_savename = tk.Frame(master=frm_all_save_info, relief=tk.RAISED, borderwidth=0)
         lbl_savename = tk.Label(master=frm_savename, text="savename:", padx=1, pady=1)
-        ent_savename = tk.Entry(master=frm_savename, width=15)
+        ent_savename = tk.Entry(master=frm_savename, fg="blue", width=15)
         ent_savename.insert(0, "untitled")
         self.widgets["savename"] = ent_savename
         lbl_savename.pack(padx=1, pady=1, side=tk.LEFT)
@@ -163,15 +173,13 @@ class ScanWindow(tk.Toplevel):
         lbl_foldername_indicator.pack(padx=1, pady=1, side=tk.LEFT)
         lbl_foldername.pack(padx=1, pady=1, side=tk.LEFT)
         self.widgets["folder"] = lbl_foldername
-        frm_selectsavebuttons = tk.Frame(master=frm_all_save_info, relief=tk.RAISED, borderwidth=0)
-        btn_selectfolder = tk.Button(master=frm_selectsavebuttons, text="Select Folder", command=self.selectFolder)
-        btn_save = tk.Button(master=frm_selectsavebuttons, text="Save", command=self.saveScan)
+        btn_selectfolder = tk.Button(master=frm_all_save_info, text="Select Folder", command=self.selectFolder)
+        btn_save = tk.Button(master=frm_all_save_info, text="Save", command=self.saveScan)
         self.widgets["save_button"] = btn_save
-        btn_selectfolder.pack(padx=1, pady=1)
-        btn_save.pack(padx=1, pady=1, side=tk.BOTTOM)
         frm_savename.pack(padx=1, pady=1)
         frm_foldername.pack(padx=1, pady=1)
-        frm_selectsavebuttons.pack(padx=1, pady=1, side=tk.BOTTOM)
+        btn_selectfolder.pack(padx=1, pady=1)
+        btn_save.pack(padx=1, pady=1, side=tk.BOTTOM)
 
         # Add to local grid (show).
         frm_side_info.columnconfigure(0, minsize=250)
@@ -195,7 +203,16 @@ class ScanWindow(tk.Toplevel):
         frm_plot.grid(column=0, row=0)
 
         # Initialize matplotlib figure.
-        self.fig = plt.figure(figsize = (7, 7))
+        aspectratio = (self.extent[3]-self.extent[2]) / (self.extent[1]-self.extent[0])
+        dimx = 7
+        dimy = 5.5
+        if aspectratio >= 1: # Portrait
+            dimx /= aspectratio
+            print(dimx)
+        else: # Landscape
+            dimy *= aspectratio
+            print(dimy)
+        self.fig = plt.figure(figsize = (max(4, dimx), max(2, dimy)))
         canvas = FigureCanvasTkAgg(self.fig, master=frm_plot)
         self.widgets["canvas"] = canvas
         # Put canvas on the GUI.
@@ -294,7 +311,7 @@ class ScanWindow(tk.Toplevel):
         plot = ax.imshow(self.scan_data,
                             extent=self.extent,
                             origin='lower',
-                            cmap='gray',
+                            cmap=self.widgets["colorbar_palette"].get(),
                             vmin=self.counts_minmax[0],
                             vmax=self.counts_minmax[1])
         self.fig.colorbar(plot, ax=ax)
@@ -306,7 +323,7 @@ class ScanWindow(tk.Toplevel):
         self.update_idletasks()
         return ax
     
-    def changeMinMax(self, autoscale):
+    def changeColorbar(self, autoscale):
         self.autoscale = autoscale
         if self.autoscale:
             # Autoscale.
