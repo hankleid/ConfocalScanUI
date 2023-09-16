@@ -208,10 +208,8 @@ class ScanWindow(tk.Toplevel):
         dimy = 5.5
         if aspectratio >= 1: # Portrait
             dimx /= aspectratio
-            print(dimx)
         else: # Landscape
             dimy *= aspectratio
-            print(dimy)
         self.fig = plt.figure(figsize = (max(4, dimx), max(2, dimy)))
         canvas = FigureCanvasTkAgg(self.fig, master=frm_plot)
         self.widgets["canvas"] = canvas
