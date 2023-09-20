@@ -358,14 +358,23 @@ class ScanWindow(tk.Toplevel):
         # [Event Handler] Places a crosshair (marker + perpendiuclar lines) on the plot.
         # Removes the previous crosshair if refresh is True.
         #
-        if x_coord is None or y_coord is None:
-            # If clicked outside the plot:
+
+        # Handle cases where user clicks outside the desired area.
+        outside_plot = x_coord is None or y_coord is None
+        inside_colorbar = False
+        if not outside_plot:
+            inside_colorbar = y_coord > self.extent[3] or x_coord < self.extent[0]
+        if outside_plot or inside_colorbar:
+            # If clicked outside the plot (or inside the colorbar):
+            print("out of bounds")
             return
+        
+        # Removes the previous three lines on the plot (ideally, removes the previous crosshair).
         if refresh:
             ax.lines.pop()
             ax.lines.pop()
             ax.lines.pop()
-            
+        # Places a new crosshair.
         x_coord = round(x_coord, 2)
         y_coord = round(y_coord, 2)
         ax.axhline(y = y_coord, color = 'r', linestyle = '-', linewidth=1)
