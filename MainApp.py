@@ -85,7 +85,7 @@ class MainApp(tk.Tk):
         ent_x_end.insert(0, "1")
         lbl_x_step = tk.Label(master=frm_x, text="step:", padx=1, pady=1)
         ent_x_step= tk.Entry(master=frm_x, width=5)
-        ent_x_step.insert(0, "0.01")
+        ent_x_step.insert(0, "0.1")
         self.widgets["x_start"] = ent_x_start
         self.widgets["x_end"] = ent_x_end
         self.widgets["x_step"] = ent_x_step
@@ -109,7 +109,7 @@ class MainApp(tk.Tk):
         ent_y_end.insert(0, "1")
         lbl_y_step = tk.Label(master=frm_y, text="step:", padx=1, pady=1)
         ent_y_step= tk.Entry(master=frm_y, width=5)
-        ent_y_step.insert(0, "0.01")
+        ent_y_step.insert(0, "0.1")
         self.widgets["y_start"] = ent_y_start
         self.widgets["y_end"] = ent_y_end
         self.widgets["y_step"] = ent_y_step
