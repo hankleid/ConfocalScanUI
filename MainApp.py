@@ -4,7 +4,7 @@ from ScanWindow import *
 
 class MainApp(tk.Tk):
     widgets = {} # Grid --> frames --> widgets
-    subwindows = []
+    subwindow = None
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
@@ -17,6 +17,8 @@ class MainApp(tk.Tk):
         ##
         self.widgets["start_button"].config(state='disabled')
         self.widgets["interrupt_button"].config(state='disabled')
+        self.widgets["custom_json_button"].config(state='disabled')
+        self.widgets["custom_loop_button"].config(state='disabled')
         self.widgets["x_start"].config(state='readonly')
         self.widgets["x_end"].config(state='readonly')
         self.widgets["x_step"].config(state='readonly')
@@ -29,8 +31,10 @@ class MainApp(tk.Tk):
         ##
         ## Enables all widgets in the control menu to user input.
         ##
-        self.widgets["start_button"].config(state='active')
-        self.widgets["interrupt_button"].config(state='active')
+        self.widgets["start_button"].config(state='normal')
+        self.widgets["interrupt_button"].config(state='normal')
+        self.widgets["custom_json_button"].config(state='normal')
+        self.widgets["custom_loop_button"].config(state='normal')
         self.widgets["x_start"].config(state='normal')
         self.widgets["x_end"].config(state='normal')
         self.widgets["x_step"].config(state='normal')
@@ -44,26 +48,38 @@ class MainApp(tk.Tk):
         ## [Event handler] STARTS SCAN.
         ##
         self.disableWidgetInputs()
-        self.widgets["interrupt_button"].config(state="active")
+        self.widgets["interrupt_button"].config(state="normal")
 
         print("start")
-        for sub in self.subwindows:
-            # Clear previous scans. (There should only be max. 1 subwindow, but we loop just in case.)
-            sub.destroy()
-
-        subwindow = ScanWindow(self)
-        self.subwindows.append(subwindow)
-        subwindow.takeScan()
+        if self.subwindow is not None:
+            self.subwindow.destroy()
+        self.subwindow = ScanWindow(self)
+        self.subwindow.takeScan()
     
     def interruptScanEvent(self):
         ##
         ## [Event handler] INTERRUPTS SCAN.
         ##
         self.enableWidgetInputs()
-        self.widgets["interrupt_button"].config(state='disabled')
-
+        self.widgets["interrupt_button"].config(state="disabled")
+        self.widgets["custom_loop_button"].config(state="disabled")
         print("interrupt")
-        return
+    
+    def uploadJsonEvent(self):
+        self.widgets["custom_loop_button"].config(state="normal")
+
+    def startCustomLoopEvent(self):
+        self.widgets["start_button"].config(state="disabled")
+        self.widgets["interrupt_button"].config(state="normal")
+        self.widgets["custom_loop_button"].config(state="disabled")
+        example = {
+            'x_coords': [-0.5, -0.25, 0, 0.25, 0.5],
+            'y_coords': [-0.5, -0.25, 0, 0.25, 0.5]
+        }
+        self.subwindow.goCustomCoords(example["x_coords"], example["y_coords"])
+        self.widgets["interrupt_button"].config(state="disabled")
+        self.widgets["start_button"].config(state="normal")
+        self.widgets["custom_loop_button"].config(state="normal")
 
     def generateControlMenu(self):
         ##
@@ -147,15 +163,27 @@ class MainApp(tk.Tk):
         btn_start.pack(padx=5, pady=5, side=tk.LEFT)
         btn_interrupt.pack(padx=5, pady=5, side=tk.LEFT)
 
+        # Custom coordinates frame.
+        frm_customcoords = tk.Frame(
+            master=self,
+            relief=tk.RAISED,
+            borderwidth=1
+        )
+        widget_frames.append(frm_customcoords)
+        lbl_customcoords = tk.Label(master=frm_customcoords, text="custom coordinates:", padx=1, pady=1)
+        btn_uploadjson = tk.Button(master=frm_customcoords, text="Upload .json", state="disabled", command=self.uploadJsonEvent)
+        btn_gocustom = tk.Button(master=frm_customcoords, text="Start Loop", state="disabled", command=self.startCustomLoopEvent)
+        lbl_jsonfilename = tk.Label(master=frm_customcoords, text="", fg="blue", padx=1, pady=1)
+        self.widgets["custom_json_button"] = btn_uploadjson
+        self.widgets["custom_loop_button"] = btn_gocustom
+        self.widgets["custom_coords_path"] = lbl_jsonfilename
+        lbl_customcoords.pack(padx=1, pady=1)
+        btn_uploadjson.pack(padx=1, pady=1)
+        btn_gocustom.pack(padx=1, pady=1)
+        lbl_jsonfilename.pack(padx=1, pady=1)
+
         # Add to grid (show).
         self.columnconfigure(0, minsize=300)
         self.rowconfigure([i for i in range(len(widget_frames))], minsize=5)
         for i in range(len(widget_frames)):
             widget_frames[i].grid(column=0, row=i)
-
-    def isScanRunning(self):
-        for subwindow in self.subwindows:
-            if subwindow.currently_scanning:
-                return True
-        return False
-

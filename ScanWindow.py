@@ -14,12 +14,12 @@ class ScanWindow(tk.Toplevel):
     parent_app = None
     ID = ""
     currently_scanning = False
-    scan_data = None # 2D numpy data
+    scan_data = None # 2D numpy data.
     datastream = [] # Contains all the data in a flattened list, appended as the scan progresses. For internal use, like min/max.
-    xy_range = [0, 0, 0, 0] # x range, y range
-    x_data = None # X axis array
-    y_data = None # Y axis array
-    fig = None # Matplotlib figure for the scan
+    xy_range = [0, 0, 0, 0] # x range, y range.
+    x_data = None # X axis array.
+    y_data = None # Y axis array.
+    fig = None # Matplotlib figure for the scan.
     ax = None # The actual plot.
     widgets = {}
     cursor_coordinates = [0,0]
@@ -30,7 +30,7 @@ class ScanWindow(tk.Toplevel):
         tk.Toplevel.__init__(self, *args, **kwargs)
         self.protocol("WM_DELETE_WINDOW", self.onClosing)
         self.ID = self.generateScanID()
-        self.title("Scan "+str(len(app.subwindows)+1)+": "+self.ID)
+        self.title("Scan "+self.ID)
         self.parent_app = app # Access control menu through this App object.
 
         self.columnconfigure([0, 1], minsize=200)
@@ -64,6 +64,9 @@ class ScanWindow(tk.Toplevel):
         y_end = float(parent_widgets["y_end"].get())
         y_step = float(parent_widgets["y_step"].get())
         self.xy_range = [x_start, x_end, y_start, y_end]
+        # Default cursor placement is in the center of the scan.
+        self.cursor_coordinates[0] = (self.xy_range[1]+self.xy_range[0])/2
+        self.cursor_coordinates[1] = (self.xy_range[3]+self.xy_range[2])/2
 
         # X and Y voltage axes.
         self.x_data = np.linspace(x_start, x_end, int((x_end - x_start) / x_step)+1)
@@ -153,24 +156,6 @@ class ScanWindow(tk.Toplevel):
         btn_cursor_move.pack(padx=1, pady=1)
         btn_cursor_center.pack(padx=1, pady=1)
         lbl_cursor_coordinates.pack(padx=1, pady=1, side=tk.BOTTOM)
-
-        # Custom coordinates frame.
-        frm_customcoords = tk.Frame(
-            master=frm_side_info,
-            relief=tk.RAISED,
-            borderwidth=0
-        )
-        sideinfo_frames.append(frm_customcoords)
-        lbl_customcoords = tk.Label(master=frm_customcoords, text="custom coordinates:", padx=1, pady=1)
-        btn_uploadjson = tk.Button(master=frm_customcoords, text="Upload .json", command=self.uploadCustomCoords)
-        btn_gocustom = tk.Button(master=frm_customcoords, text="Go", command=self.goCustomCoords)
-        lbl_jsonfilename = tk.Label(master=frm_customcoords, text="", fg="blue", padx=1, pady=1)
-        self.widgets["custom_go_button"] = btn_gocustom
-        self.widgets["custom_coords_path"] = lbl_jsonfilename
-        lbl_customcoords.pack(padx=1, pady=1)
-        btn_uploadjson.pack(padx=1, pady=1)
-        btn_gocustom.pack(padx=1, pady=1)
-        lbl_jsonfilename.pack(padx=1, pady=1)
 
         # Save settings frame.
         frm_all_save_info = tk.Frame(
@@ -273,7 +258,6 @@ class ScanWindow(tk.Toplevel):
         self.widgets["cursor_move_button"].configure(state="disabled")
         self.widgets["cursor_center_button"].configure(state="disabled")
         self.widgets["save_button"].configure(state="disabled")
-        self.widgets["custom_go_button"].config(state="disabled")
 
         self.currently_scanning = True
 
@@ -310,21 +294,17 @@ class ScanWindow(tk.Toplevel):
         # Scan end.
         self.currently_scanning = False
         print("Scan done.")
-
         self.parent_app.interruptScanEvent()
-        # Enable cursor buttons.
-        self.widgets["cursor_move_button"].configure(state="normal")
+        # Enable buttons.
         self.widgets["cursor_center_button"].configure(state="normal")
         self.widgets["save_button"].configure(state="normal")
-        # Place crosshairs in the middle of the plot (not clicking cursor) to prep for mouse event.
-        self.placeCrosshair((self.xy_range[1]+self.xy_range[0])/2, (self.xy_range[3]+self.xy_range[2])/2)
-        # plot_clicker is the callback ID for the matplotlib mouse click event. Stored in widgets for future access to disconnect/reconnect.
+        # Enable clicking the plot for placing cursor.
         self.connectPlotClicker()
 
     def plotWithColorbar(self):
-        # 
-        # Refresh figure by clearing fig and remaking ax. Then plot.
-        # 
+        ## 
+        ## REFRESH FIGURE BY CLEARING fig AND REMAKING ax. THEN PLOT.
+        ## 
         self.fig.clear()
         self.ax = self.fig.add_subplot(111)
         plot = self.ax.imshow(self.scan_data,
@@ -342,6 +322,9 @@ class ScanWindow(tk.Toplevel):
         self.update_idletasks()
     
     def changeColorbar(self, autoscale):
+        ##
+        ## [Event Handler] MAKES CHANGES TO COLORBAR SETTINGS (MIN/MAX) & REFRESHES PLOT IF NECESSARY.
+        ##
         self.autoscale = autoscale
         if self.autoscale:
             # Autoscale.
@@ -358,33 +341,35 @@ class ScanWindow(tk.Toplevel):
             self.placeCrosshair(self.cursor_coordinates[0], self.cursor_coordinates[1])
 
     def onClicking(self, e):
-        #
-        # [Event Handler] Refreshes the crosshair placement at the location of the mouse click.
-        # Does nothing if the user clicks outside of the plot.
-        #
+        ##
+        ## [Event Handler] Refreshes the crosshair placement at the location of the mouse click.
+        ## Does nothing if the user clicks outside of the plot.
+        ##
         outside_plot = e.xdata is None or e.ydata is None
         inside_colorbar = False
         if not outside_plot:
             inside_colorbar = e.ydata > self.xy_range[3] or e.xdata < self.xy_range[0]
         if outside_plot or inside_colorbar:
-            # If clicked outside the plot (or inside the colorbar):
-            print("out of bounds")
+            # Out of bounds.
+            return
         else:
-            self.removeCrosshair()
+            self.removeCrosshair() # Remove previous crosshair.
             self.placeCrosshair(e.xdata, e.ydata)
+            if str(self.widgets["cursor_move_button"]["state"]) == "disabled":
+                self.widgets["cursor_move_button"].configure(state="normal")
 
     def connectPlotClicker(self):
-        #
-        # Connects the mouse click event handling connection to the matplotlib plot.
-        # Callback id (cid) global variable for keeping track of the current handler.
-        #
+        ##
+        ## CONNECTS THE MOUSE CLICK EVENT HANDLING CONNECTION TO THE MATPLOTLIB PLOT.
+        ## CALLBACK ID (cid) STORED IN WIDGETS FOR KEEPING TRACK OF THE HANDLER.
+        ##
         self.widgets["plot_clicker"] = self.widgets["canvas"].mpl_connect('button_press_event', lambda e: self.onClicking(e))
 
     def disconnectPlotClicker(self):
-        #
-        # Disconnects the mouse click event handling connection from the matplotlib plot.
-        # Callback id (cid) global variable for keeping track of the current handler.
-        #
+        ##
+        ## DISCONNECTS THE MOUSE CLICK EVENT HANDLING CONNECTION TO THE MATPLOTLIB PLOT.
+        ## CALLBACK ID (cid) STORED IN WIDGETS FOR KEEPING TRACK OF THE HANDLER.
+        ##
         cid = self.widgets["plot_clicker"]
         self.widgets["canvas"].mpl_disconnect(cid)
 
@@ -392,9 +377,9 @@ class ScanWindow(tk.Toplevel):
         print("cursor move")
 
     def placeCrosshair(self, x_coord, y_coord):
-        #
-        # Places a crosshair (marker + perpendiuclar lines) on the plot.
-        #
+        ##
+        ## PLACES A CROSSHAIR (MARKER + PREPENDICULAR LINES) ON THE PLOT AT (x_coord, y_coord).
+        ##
         x_coord = round(x_coord, 2)
         y_coord = round(y_coord, 2)
         self.ax.axhline(y = y_coord, color = 'r', linestyle = '-', linewidth=1)
@@ -405,53 +390,58 @@ class ScanWindow(tk.Toplevel):
         self.widgets["cursor_coordinates"].config(text=f"({x_coord}, {y_coord})")
 
     def removeCrosshair(self):
-        #
-        # Removes the crosshair from the plot. If no crosshair, does nothing.
-        #
-        if len(self.ax.lines) <= 1:
-            print("error: there is no crosshair to remove.")
-        else:
+        ##
+        ## REMOVES THE CROSSHAIR FROM THE PLOT. IF NO CROSSHAIR, DOES NOTHING.
+        ##
+        if len(self.ax.lines) > 0:
             self.ax.lines.pop()
             self.ax.lines.pop()
             self.ax.lines.pop()
 
-    def uploadCustomCoords(self):
-        self.widgets["custom_go_button"].config(state="normal")
-    
-    def goCustomCoords(self):
-        #
-        # [Event Handler] TOGGLES CUSTOM SCANNING.
-        #
-        self.currently_scanning = not self.currently_scanning # Toggle self.currently_scanning.
-        # Refresh plot without crosshair.
+    def goCustomCoords(self, x_coords, y_coords):
+        ##
+        ## SCANS THROUGH POINTS IN x_coord AND y_coords INFINITELY UNTIL Interrupt BUTTON IS PRESSED.
+        ##
+        self.removeCrosshair()
         self.disconnectPlotClicker()
-        ax = self.plotWithColorbar(self.autoscale)
-        if self.currently_scanning: # Start scanning.
-            self.widgets["custom_go_button"].config(text="Stop")
-            i = 0
-            while str(self.widgets["custom_go_button"]["state"]) != "disabled":
-                #time.sleep(1)
-                print("yah " + str(i))
-                i += 1
-        else: # Stop scanning.
-            print("stopping")
-            # Replace crosshair.
-            self.placeCrosshair(self.cursor_coordinates[0], self.cursor_coordinates[1])
-            self.connectPlotClicker(ax)
-            self.widgets["custom_go_button"].config(text="Go")
-    
+        # Plot all the points in cyan to show the pattern.
+        self.ax.plot(x_coords, y_coords, "s", markersize=5.5, markerfacecolor="None", markeredgewidth=1, markeredgecolor='cyan')
+        # Loop through the points and flash each point red as it goes.
+        self.currently_scanning = True
+        while str(self.parent_app.widgets["interrupt_button"]["state"]) != "disabled":
+            for x, y in zip(x_coords, y_coords):
+                if str(self.parent_app.widgets["interrupt_button"]["state"]) == "disabled":
+                    break
+                self.ax.plot([x], [y], "s", markersize=5.5, markerfacecolor="red", markeredgewidth=1, markeredgecolor="red")
+                self.widgets["canvas"].draw()
+                # Update the UI... tkinter made me do it :/
+                self.update()
+                self.update_idletasks()
+                # Remove previous point from plot (to procude flashing effect).
+                self.ax.lines.pop()
+        # Remove the initial plotting of custom points, leaving the scan underneath.
+        self.ax.lines.pop()
+        # Replace the crosshair.
+        self.placeCrosshair(self.cursor_coordinates[0], self.cursor_coordinates[1])
+        self.connectPlotClicker()
+        self.currently_scanning = False
+        print("end")
+
     def selectSaveFolder(self):
         self.widgets["folder"].config(text=str(askdirectory()))
 
     def saveScan(self):
+        ##
+        ## [Event Handler] SAVES SCAN DATA IN JSON FILE AND SCAN PLOT AS PNG.
+        ##
         file_name = self.ID + "_" + str(self.widgets["savename"].get())
         path = os.path.join(self.widgets["folder"].cget("text"),file_name)
 
         # Save data to .json file.
         datafile = {
             "integration_time": float(self.parent_app.widgets["int_time"].get()),
-            "x": self.x_data.tolist(),
-            "y": self.y_data.tolist(),
+            "x_axis": self.x_data.tolist(),
+            "y_axis": self.y_data.tolist(),
             "data": self.scan_data.tolist()
         }
         datafile_json = json.dumps(datafile, indent=4)
@@ -459,19 +449,17 @@ class ScanWindow(tk.Toplevel):
             file.write(datafile_json)
 
         # Save the figure (without crosshair).
-        self.plotWithColorbar() # refresh the image w/o cursors.
+        self.removeCrosshair()
         self.fig.savefig(path, dpi='figure')
-        # refresh crosshair.
-        self.placeCrosshair(self.cursor_coordinates[0], self.cursor_coordinates[1])
-
         print("Data file & plot saved!")
+        self.placeCrosshair(self.cursor_coordinates[0], self.cursor_coordinates[1])
 
     def onClosing(self):
         ##
         ## [Event Handler] CLOSES SCAN WINDOW & AJUSTS UI.
         ##
-        if self.parent_app.isScanRunning() is False:
-            # Only reset the start button if no other scans are running.
-            self.parent_app.widgets["start_button"].configure(state="active")
-            self.destroy()
+        if self.currently_scanning:
+            self.parent_app.interruptScanEvent()
+        self.parent_app.widgets["custom_json_button"].configure(state="disabled")
+        self.destroy()
     
