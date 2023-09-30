@@ -1,85 +1,19 @@
+import json
 import tkinter as tk
+from tkinter.filedialog import askopenfilename
 from ScanWindow import *
+from PopoutPlot import *
 
 
 class MainApp(tk.Tk):
     widgets = {} # Grid --> frames --> widgets
     subwindow = None
+    miniplot = None
 
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
         self.title("Control Menu")
         self.generateControlMenu() # Grid is generated in this method
-
-    def disableWidgetInputs(self):
-        ##
-        ## Disables all widgets in the control menu to user input.
-        ##
-        self.widgets["start_button"].config(state='disabled')
-        self.widgets["interrupt_button"].config(state='disabled')
-        self.widgets["custom_json_button"].config(state='disabled')
-        self.widgets["custom_loop_button"].config(state='disabled')
-        self.widgets["x_start"].config(state='readonly')
-        self.widgets["x_end"].config(state='readonly')
-        self.widgets["x_step"].config(state='readonly')
-        self.widgets["y_start"].config(state='readonly')
-        self.widgets["y_end"].config(state='readonly')
-        self.widgets["y_step"].config(state='readonly')
-        self.widgets["int_time"].config(state='readonly')
-    
-    def enableWidgetInputs(self):
-        ##
-        ## Enables all widgets in the control menu to user input.
-        ##
-        self.widgets["start_button"].config(state='normal')
-        self.widgets["interrupt_button"].config(state='normal')
-        self.widgets["custom_json_button"].config(state='normal')
-        self.widgets["custom_loop_button"].config(state='normal')
-        self.widgets["x_start"].config(state='normal')
-        self.widgets["x_end"].config(state='normal')
-        self.widgets["x_step"].config(state='normal')
-        self.widgets["y_start"].config(state='normal')
-        self.widgets["y_end"].config(state='normal')
-        self.widgets["y_step"].config(state='normal')
-        self.widgets["int_time"].config(state='normal')
-
-    def startScanEvent(self):
-        ##
-        ## [Event handler] STARTS SCAN.
-        ##
-        self.disableWidgetInputs()
-        self.widgets["interrupt_button"].config(state="normal")
-
-        print("start")
-        if self.subwindow is not None:
-            self.subwindow.destroy()
-        self.subwindow = ScanWindow(self)
-        self.subwindow.takeScan()
-    
-    def interruptScanEvent(self):
-        ##
-        ## [Event handler] INTERRUPTS SCAN.
-        ##
-        self.enableWidgetInputs()
-        self.widgets["interrupt_button"].config(state="disabled")
-        self.widgets["custom_loop_button"].config(state="disabled")
-        print("interrupt")
-    
-    def uploadJsonEvent(self):
-        self.widgets["custom_loop_button"].config(state="normal")
-
-    def startCustomLoopEvent(self):
-        self.widgets["start_button"].config(state="disabled")
-        self.widgets["interrupt_button"].config(state="normal")
-        self.widgets["custom_loop_button"].config(state="disabled")
-        example = {
-            'x_coords': [-0.5, -0.25, 0, 0.25, 0.5],
-            'y_coords': [-0.5, -0.25, 0, 0.25, 0.5]
-        }
-        self.subwindow.goCustomCoords(example["x_coords"], example["y_coords"])
-        self.widgets["interrupt_button"].config(state="disabled")
-        self.widgets["start_button"].config(state="normal")
-        self.widgets["custom_loop_button"].config(state="normal")
 
     def generateControlMenu(self):
         ##
@@ -187,3 +121,85 @@ class MainApp(tk.Tk):
         self.rowconfigure([i for i in range(len(widget_frames))], minsize=5)
         for i in range(len(widget_frames)):
             widget_frames[i].grid(column=0, row=i)
+
+    def disableWidgetInputs(self):
+        ##
+        ## Disables all widgets in the control menu to user input.
+        ##
+        self.widgets["start_button"].config(state='disabled')
+        self.widgets["interrupt_button"].config(state='disabled')
+        self.widgets["custom_json_button"].config(state='disabled')
+        self.widgets["custom_loop_button"].config(state='disabled')
+        self.widgets["x_start"].config(state='readonly')
+        self.widgets["x_end"].config(state='readonly')
+        self.widgets["x_step"].config(state='readonly')
+        self.widgets["y_start"].config(state='readonly')
+        self.widgets["y_end"].config(state='readonly')
+        self.widgets["y_step"].config(state='readonly')
+        self.widgets["int_time"].config(state='readonly')
+    
+    def enableWidgetInputs(self):
+        ##
+        ## Enables all widgets in the control menu to user input.
+        ##
+        self.widgets["start_button"].config(state='normal')
+        self.widgets["interrupt_button"].config(state='normal')
+        self.widgets["custom_json_button"].config(state='normal')
+        self.widgets["custom_loop_button"].config(state='normal')
+        self.widgets["x_start"].config(state='normal')
+        self.widgets["x_end"].config(state='normal')
+        self.widgets["x_step"].config(state='normal')
+        self.widgets["y_start"].config(state='normal')
+        self.widgets["y_end"].config(state='normal')
+        self.widgets["y_step"].config(state='normal')
+        self.widgets["int_time"].config(state='normal')
+
+    def startScanEvent(self):
+        ##
+        ## [Event handler] STARTS SCAN.
+        ##
+        self.disableWidgetInputs()
+        self.widgets["interrupt_button"].config(state="normal")
+        self.widgets["custom_coords_path"].config(text="")
+
+        print("start")
+        if self.subwindow is not None:
+            self.subwindow.destroy()
+        self.subwindow = ScanWindow(self)
+        self.subwindow.takeScan()
+    
+    def interruptScanEvent(self):
+        ##
+        ## [Event handler] INTERRUPTS SCAN.
+        ##
+        self.enableWidgetInputs()
+        self.widgets["interrupt_button"].config(state="disabled")
+        self.widgets["custom_loop_button"].config(state="disabled")
+        print("interrupt")
+    
+    def uploadJsonEvent(self):
+        self.widgets["custom_loop_button"].config(state="normal")
+        fn = str(askopenfilename())
+        self.widgets["custom_coords_path"].config(text=fn)
+        coordsfile = json.load(open(fn))
+        s = self.subwindow
+        s.removeCrosshair()
+        s.clearAnnotations()
+        s.plotCustomCoords(coordsfile["x_coord"], coordsfile["y_coord"])
+        if s.crosshair:
+            s.placeCrosshair(s.cursor_coordinates[0], s.cursor_coordinates[1])
+
+    def startCustomLoopEvent(self):
+        self.widgets["start_button"].config(state="disabled")
+        self.widgets["interrupt_button"].config(state="normal")
+        self.widgets["custom_loop_button"].config(state="disabled")
+
+        coordsfile = json.load(open(self.widgets["custom_coords_path"].cget("text")))
+        if self.miniplot is None:
+            self.miniplot = PopoutPlot(self.subwindow, coordsfile["x_coord"], coordsfile["y_coord"])
+        self.miniplot.takeScan()
+        # SAVE PLOT WITH MASK.
+
+        self.widgets["interrupt_button"].config(state="disabled")
+        self.widgets["start_button"].config(state="normal")
+        self.widgets["custom_loop_button"].config(state="normal")

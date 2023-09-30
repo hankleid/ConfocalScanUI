@@ -9,22 +9,25 @@ import time
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from datetime import datetime
+from skimage.feature import peak_local_max
 
 class ScanWindow(tk.Toplevel):
-    parent_app = None
-    ID = ""
+    parent_app = None # Main App from which this object is instantiated.
+    ID = "" # Unique ID for this scan.
     currently_scanning = False
     scan_data = None # 2D numpy data.
     datastream = [] # Contains all the data in a flattened list, appended as the scan progresses. For internal use, like min/max.
     xy_range = [0, 0, 0, 0] # x range, y range.
-    x_data = None # X axis array.
-    y_data = None # Y axis array.
+    x_axis = None # X axis array.
+    y_axis = None # Y axis array.
+    save_data = {}
     fig = None # Matplotlib figure for the scan.
     ax = None # The actual plot.
-    widgets = {}
-    cursor_coordinates = [0,0]
-    counts_minmax = [0,0]
-    autoscale = True # (for colorbar) True if autoscale; False if user input
+    widgets = {} # Buttons, labels, entries, etc. relevant to the app.
+    cursor_coordinates = [0,0] # Coordinates for the current placement of the clicked cursor.
+    counts_minmax = [0,0] # Min and max values for the plotting colorbar.
+    autoscale = True # True if autoscale; False if user input. For colorbar.
+    crosshair = False
 
     def __init__(self, app, *args, **kwargs):
         tk.Toplevel.__init__(self, *args, **kwargs)
@@ -36,13 +39,13 @@ class ScanWindow(tk.Toplevel):
         self.columnconfigure([0, 1], minsize=200)
         self.rowconfigure(0, minsize=50)
 
-        # Frame that holds the scan.
+        # Frame that holds the side info widgets.
         frm_side_info = tk.Frame(
             master=self,
             relief=tk.RAISED,
             borderwidth=1
         )
-        # Frame that holds the side info widgets.
+        # Frame that holds the scan.
         frm_scan = tk.Frame(
             master=self,
             relief=tk.RAISED,
@@ -55,7 +58,7 @@ class ScanWindow(tk.Toplevel):
         self.widgets["scan_frame"] = frm_scan
         self.widgets["side_info_frame"] = frm_side_info
 
-        # Init scan params
+        # Init scan params.
         parent_widgets = self.parent_app.widgets
         x_start = float(parent_widgets["x_start"].get())
         x_end = float(parent_widgets["x_end"].get())
@@ -64,17 +67,21 @@ class ScanWindow(tk.Toplevel):
         y_end = float(parent_widgets["y_end"].get())
         y_step = float(parent_widgets["y_step"].get())
         self.xy_range = [x_start, x_end, y_start, y_end]
-        # Default cursor placement is in the center of the scan.
-        self.cursor_coordinates[0] = (self.xy_range[1]+self.xy_range[0])/2
-        self.cursor_coordinates[1] = (self.xy_range[3]+self.xy_range[2])/2
+        # Default cursor placement is in the center of the plot.
+        self.cursor_coordinates = [(self.xy_range[1]+self.xy_range[0])/2, (self.xy_range[3]+self.xy_range[2])/2]
 
         # X and Y voltage axes.
-        self.x_data = np.linspace(x_start, x_end, int((x_end - x_start) / x_step)+1)
-        self.y_data = np.linspace(y_start, y_end, int((y_end - y_start) / y_step)+1)
+        self.x_axis = np.linspace(x_start, x_end, int((x_end - x_start) / x_step)+1)
+        self.y_axis = np.linspace(y_start, y_end, int((y_end - y_start) / y_step)+1)
+        print(self.x_axis, self.y_axis)
 
         # Initialize data array.
-        self.scan_data = np.zeros((len(self.x_data), len(self.y_data))) #  Data for plotting and saving.
-
+        self.scan_data = np.zeros((len(self.x_axis), len(self.y_axis))) #  Data for plotting and saving.
+        self.save_data = {
+            "integration_time": float(self.parent_app.widgets["int_time"].get()),
+            "x_axis": self.x_axis.tolist(),
+            "y_axis": self.y_axis.tolist(),
+        }
         self.generateSideInfo()
         self.generatePlotHolder()
 
@@ -157,6 +164,49 @@ class ScanWindow(tk.Toplevel):
         btn_cursor_center.pack(padx=1, pady=1)
         lbl_cursor_coordinates.pack(padx=1, pady=1, side=tk.BOTTOM)
 
+        # Peak finding frame.
+        frm_peakfind = tk.Frame(
+            master=frm_side_info,
+            relief=tk.RAISED,
+            borderwidth=0
+        )
+        sideinfo_frames.append(frm_peakfind)
+        lbl_peakfind = tk.Label(master=frm_peakfind, text="peak finding:", padx=1, pady=1)
+        frm_peaksep = tk.Frame(master=frm_peakfind, relief=tk.RAISED, borderwidth=0)
+        lbl_peaksep = tk.Label(master=frm_peaksep, text="min. separation:", padx=1, pady=1)
+        ent_peaksep = tk.Entry(master=frm_peaksep, width=2)
+        ent_peaksep.insert(0, "3")
+        self.widgets["peak_min_sep"] = ent_peaksep
+        lbl_peaksep.pack(padx=1, pady=1, side=tk.LEFT)
+        ent_peaksep.pack(padx=1, pady=1, side=tk.LEFT)
+        frm_thresh = tk.Frame(master=frm_peakfind, relief=tk.RAISED, borderwidth=0)
+        lbl_thresh = tk.Label(master=frm_thresh, text="intensity threshold:", padx=1, pady=1)
+        ent_thresh = tk.Entry(master=frm_thresh, width=2)
+        ent_thresh.insert(0, "0.7")
+        self.widgets["peak_threshold"] = ent_thresh
+        lbl_thresh.pack(padx=1, pady=1, side=tk.LEFT)
+        ent_thresh.pack(padx=1, pady=1, side=tk.LEFT)
+        frm_peakbtns = tk.Frame(master=frm_peakfind, relief=tk.RAISED, borderwidth=0)
+        btn_findpeaks = tk.Button(master=frm_peakbtns, text="Find Peaks", command=self.plotPeaks)
+        btn_savepeaks = tk.Button(master=frm_peakbtns, text="Save Peaks", command=self.onSavePeaks)
+        btn_findpeaks.pack(padx=1, pady=1, side=tk.LEFT)
+        btn_savepeaks.pack(padx=1, pady=1, side=tk.LEFT)
+        frm_gopeak = tk.Frame(master=frm_peakfind, relief=tk.RAISED, borderwidth=0)
+        lbl_gopeak = tk.Label(master=frm_gopeak, text="go to peak #:", padx=1, pady=1)
+        btn_gopeak = tk.Button(master=frm_gopeak, text="Next", command=lambda: 1)
+        ent_gopeak = tk.Entry(master=frm_gopeak, width=2)
+        ent_gopeak.insert(0, "0")
+        ent_gopeak.bind('<Return>', lambda e: 1)
+        lbl_gopeak.pack(padx=1, pady=1, side=tk.LEFT)
+        ent_gopeak.pack(padx=1, pady=1, side=tk.LEFT)
+        btn_gopeak.pack(padx=1, pady=1, side=tk.LEFT)
+
+        lbl_peakfind.pack(padx=1, pady=1)
+        frm_peaksep.pack(padx=1, pady=1)
+        frm_thresh.pack(padx=1, pady=1)
+        frm_peakbtns.pack(padx=1, pady=1)
+        frm_gopeak.pack(padx=1, pady=1, side=tk.BOTTOM)
+
         # Save settings frame.
         frm_all_save_info = tk.Frame(
             master=frm_side_info,
@@ -179,7 +229,7 @@ class ScanWindow(tk.Toplevel):
         self.widgets["folder"] = lbl_foldername
         frm_savebuttons = tk.Frame(master=frm_all_save_info, relief=tk.RAISED, borderwidth=0)
         btn_selectfolder = tk.Button(master=frm_savebuttons, text="Select Folder", command=self.selectSaveFolder)
-        btn_save = tk.Button(master=frm_savebuttons, text="Save", command=self.saveScan)
+        btn_save = tk.Button(master=frm_savebuttons, text="Save", command=self.onSaveScan)
         btn_selectfolder.pack(padx=1, pady=1, side=tk.LEFT)
         btn_save.pack(padx=1, pady=1, side=tk.LEFT)
         self.widgets["save_button"] = btn_save
@@ -212,9 +262,9 @@ class ScanWindow(tk.Toplevel):
         aspectratio = (self.xy_range[3]-self.xy_range[2]) / (self.xy_range[1]-self.xy_range[0])
         dimx = 7
         dimy = 5.5
-        if aspectratio >= 1: # Portrait
+        if aspectratio >= 1: # Portrait.
             dimx /= aspectratio
-        else: # Landscape
+        else: # Landscape.
             dimy *= aspectratio
         self.fig = plt.figure(figsize = (max(4, dimx), max(2, dimy)))
         canvas = FigureCanvasTkAgg(self.fig, master=frm_plot)
@@ -223,8 +273,7 @@ class ScanWindow(tk.Toplevel):
         # Put canvas on the GUI.
         canvas.draw()
         canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
-
-        self.widgets["plot_clicker"] = None
+        self.widgets["plot_clicker"] = None # Callback ID for the mouse clicking matplotlib event.
 
     def generateScanID(self):
         ##
@@ -246,8 +295,9 @@ class ScanWindow(tk.Toplevel):
         measurement = random.random()*10000 * move
         # Adjust measurement to count/s.
         measurement /= int_time
-
-        return abs(round(measurement, 2))
+        measurement = abs(round(measurement, 2))
+        self.widgets["counts"].config(text=str(measurement))
+        return measurement
 
     def takeScan(self):
         ##
@@ -262,8 +312,8 @@ class ScanWindow(tk.Toplevel):
         self.currently_scanning = True
 
         # Scan start.
-        for y_i in range(len(self.y_data)):
-            for i in range(len(self.x_data)):
+        for y_i in range(len(self.y_axis)):
+            for i in range(len(self.x_axis)):
                 if str(self.parent_app.widgets["interrupt_button"]["state"]) == "disabled":
                     # If 'Interrupt' button is pressed, stop scan.
                     break
@@ -276,12 +326,11 @@ class ScanWindow(tk.Toplevel):
                     x_i = -(i+1)
 
                 # Coordinates.
-                x = self.x_data[x_i]
-                y = self.y_data[y_i]
+                x = self.x_axis[x_i]
+                y = self.y_axis[y_i]
                 
                 # Take measurement & record data.
                 current_counts = self.takeMeasurement(x, y)
-                self.widgets["counts"].config(text=str(current_counts))
                 self.scan_data[x_i][y_i] = current_counts
                 self.datastream.append(current_counts)
 
@@ -295,6 +344,7 @@ class ScanWindow(tk.Toplevel):
         self.currently_scanning = False
         print("Scan done.")
         self.parent_app.interruptScanEvent()
+        self.save_data["scan_data"] = self.scan_data.tolist()
         # Enable buttons.
         self.widgets["cursor_center_button"].configure(state="normal")
         self.widgets["save_button"].configure(state="normal")
@@ -337,10 +387,17 @@ class ScanWindow(tk.Toplevel):
             self.counts_minmax[1] = float(self.widgets["user_max"].get())
         if not self.currently_scanning:
             # Only update plot if scan is done. While scan is currently running, the plot gets refreshed often enough.
-            self.plotWithColorbar()
-            self.placeCrosshair(self.cursor_coordinates[0], self.cursor_coordinates[1])
+            if self.crosshair:
+                self.removeCrosshair()
+            lines = self.clearAnnotations()
 
-    def onClicking(self, e):
+            self.plotWithColorbar()
+
+            self.replotAnnotations(lines)
+            if self.crosshair:
+                self.placeCrosshair(self.cursor_coordinates[0], self.cursor_coordinates[1])
+
+    def onClickingPlot(self, e):
         ##
         ## [Event Handler] Refreshes the crosshair placement at the location of the mouse click.
         ## Does nothing if the user clicks outside of the plot.
@@ -363,7 +420,7 @@ class ScanWindow(tk.Toplevel):
         ## CONNECTS THE MOUSE CLICK EVENT HANDLING CONNECTION TO THE MATPLOTLIB PLOT.
         ## CALLBACK ID (cid) STORED IN WIDGETS FOR KEEPING TRACK OF THE HANDLER.
         ##
-        self.widgets["plot_clicker"] = self.widgets["canvas"].mpl_connect('button_press_event', lambda e: self.onClicking(e))
+        self.widgets["plot_clicker"] = self.widgets["canvas"].mpl_connect('button_press_event', lambda e: self.onClickingPlot(e))
 
     def disconnectPlotClicker(self):
         ##
@@ -388,71 +445,129 @@ class ScanWindow(tk.Toplevel):
         self.widgets["canvas"].draw()
         self.cursor_coordinates = [x_coord, y_coord]
         self.widgets["cursor_coordinates"].config(text=f"({x_coord}, {y_coord})")
+        self.crosshair = True
 
     def removeCrosshair(self):
         ##
         ## REMOVES THE CROSSHAIR FROM THE PLOT. IF NO CROSSHAIR, DOES NOTHING.
         ##
-        if len(self.ax.lines) > 0:
+        if self.crosshair:
             self.ax.lines.pop()
             self.ax.lines.pop()
             self.ax.lines.pop()
 
-    def goCustomCoords(self, x_coords, y_coords):
+    def clearAnnotations(self):
         ##
-        ## SCANS THROUGH POINTS IN x_coord AND y_coords INFINITELY UNTIL Interrupt BUTTON IS PRESSED.
+        ## REMOVES PLOTTED LINES (BELOW CURSOR) AND RETURNS THEM IN A LIST.
+        ##
+        lines = []
+        for _ in range(len(self.ax.lines)):
+            lines.append(self.ax.lines.pop())
+        return lines
+
+    def replotAnnotations(self, lines):
+        ##
+        ## PLOTS ALL THE LINES IN lines.
+        ##
+        for l in lines:
+            self.ax.plot(l.get_xdata(),
+                            l.get_ydata(),
+                            color=l.get_color(),
+                            marker=l.get_marker(),
+                            markersize=l.get_markersize(),
+                            markerfacecolor=l.get_markerfacecolor(),
+                            markeredgewidth=l.get_markeredgewidth(),
+                            markeredgecolor=l.get_markeredgecolor(),
+                            linestyle=l.get_linestyle())
+        self.widgets["canvas"].draw()
+
+    def plotCustomCoords(self, x_coords, y_coords):
+        ##
+        ## OVERLAYS x_coords AND y_coords ONTO THE SCAN.
+        ##
+        self.ax.plot(x_coords, y_coords, "o", markersize=3, markerfacecolor="None", markeredgewidth=1, markeredgecolor='cyan', linestyle = 'None')
+        self.widgets["canvas"].draw()
+        # Update the UI... tkinter made me do it :/
+        self.update()
+        self.update_idletasks()
+
+    def plotPeaks(self):
+        ##
+        ## [Event Handler] FINDS AND PLOTS PEAKS IN THE DATA. Code adapted from Hope Lee.
         ##
         self.removeCrosshair()
-        self.disconnectPlotClicker()
-        # Plot all the points in cyan to show the pattern.
-        self.ax.plot(x_coords, y_coords, "s", markersize=5.5, markerfacecolor="None", markeredgewidth=1, markeredgecolor='cyan')
-        # Loop through the points and flash each point red as it goes.
-        self.currently_scanning = True
-        while str(self.parent_app.widgets["interrupt_button"]["state"]) != "disabled":
-            for x, y in zip(x_coords, y_coords):
-                if str(self.parent_app.widgets["interrupt_button"]["state"]) == "disabled":
-                    break
-                self.ax.plot([x], [y], "s", markersize=5.5, markerfacecolor="red", markeredgewidth=1, markeredgecolor="red")
-                self.widgets["canvas"].draw()
-                # Update the UI... tkinter made me do it :/
-                self.update()
-                self.update_idletasks()
-                # Remove previous point from plot (to procude flashing effect).
-                self.ax.lines.pop()
-        # Remove the initial plotting of custom points, leaving the scan underneath.
-        self.ax.lines.pop()
-        # Replace the crosshair.
-        self.placeCrosshair(self.cursor_coordinates[0], self.cursor_coordinates[1])
-        self.connectPlotClicker()
-        self.currently_scanning = False
-        print("end")
+        self.clearAnnotations()
+        detected_peaks = peak_local_max(self.scan_data,
+                                        min_distance=int(self.widgets["peak_min_sep"].get()),
+                                        threshold_abs=float(self.widgets["peak_threshold"].get())*np.mean(self.scan_data))
+        peak_y, peak_x = detected_peaks.T # Indices.
+        x_coords = [self.x_axis[i] for i in peak_x]
+        y_coords = [self.y_axis[i] for i in peak_y]
+        self.ax.plot(x_coords, y_coords, "*", markersize=5.5, markerfacecolor="None", markeredgewidth=1, markeredgecolor="cyan")
+        if self.crosshair:
+            self.placeCrosshair(self.cursor_coordinates[0], self.cursor_coordinates[1])
+        self.widgets["canvas"].draw()
+
+        peak_data = {'peaks_x_coords': x_coords, 'peaks_y_coords': y_coords}
+        self.save_data["peaks"] = peak_data
 
     def selectSaveFolder(self):
         self.widgets["folder"].config(text=str(askdirectory()))
 
-    def saveScan(self):
+    def getPath(self, suffix=None):
         ##
-        ## [Event Handler] SAVES SCAN DATA IN JSON FILE AND SCAN PLOT AS PNG.
+        ## GENERATES PATH FOR SAVING.
         ##
         file_name = self.ID + "_" + str(self.widgets["savename"].get())
+        if suffix != None:
+            file_name += "_" + suffix
         path = os.path.join(self.widgets["folder"].cget("text"),file_name)
+        return path
 
-        # Save data to .json file.
-        datafile = {
-            "integration_time": float(self.parent_app.widgets["int_time"].get()),
-            "x_axis": self.x_data.tolist(),
-            "y_axis": self.y_data.tolist(),
-            "data": self.scan_data.tolist()
-        }
-        datafile_json = json.dumps(datafile, indent=4)
+    def saveJson(self, path):
+        ##
+        ## SAVES SCAN DATA IN JSON FILE.
+        ##
+        datafile_json = json.dumps(self.save_data, indent=4)
         with open(path+".json", "w") as file:   
             file.write(datafile_json)
+    
+    def savePlot(self, path, annotations=False):
+        ##
+        ## SAVES PLOT AS PNG.
+        ##
+        # Save the figure (without annotations if clear==True).
+        lines = []
+        if self.crosshair:
+            self.removeCrosshair()
+        if annotations == False: # Remove all annotations.
+            lines = self.clearAnnotations()
 
-        # Save the figure (without crosshair).
-        self.removeCrosshair()
         self.fig.savefig(path, dpi='figure')
         print("Data file & plot saved!")
-        self.placeCrosshair(self.cursor_coordinates[0], self.cursor_coordinates[1])
+
+        if annotations == False:
+            self.replotAnnotations(lines)
+        if self.crosshair:
+            # Replace crosshair.
+            self.placeCrosshair(self.cursor_coordinates[0], self.cursor_coordinates[1])
+
+    def onSaveScan(self):
+        ##
+        ## [Event Handler] 
+        ##
+        path = self.getPath()
+        self.saveJson(path)
+        self.savePlot(path)
+    
+    def onSavePeaks(self):
+        ##
+        ## [Event Handler] 
+        ##
+        data_path = self.getPath()
+        plot_path = self.getPath(suffix="peakfinding")
+        self.saveJson(data_path)
+        self.savePlot(plot_path, annotations=True)
 
     def onClosing(self):
         ##
