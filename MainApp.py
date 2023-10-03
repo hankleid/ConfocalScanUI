@@ -178,16 +178,26 @@ class MainApp(tk.Tk):
         print("interrupt")
     
     def uploadJsonEvent(self):
-        self.widgets["custom_loop_button"].config(state="normal")
+        if self.miniplot != None:
+            self.miniplot.onClosing()
+
         fn = str(askopenfilename())
-        self.widgets["custom_coords_path"].config(text=fn)
-        coordsfile = json.load(open(fn))
-        s = self.subwindow
-        s.removeCrosshair()
-        s.clearAnnotations()
-        s.plotCustomCoords(coordsfile["x_coord"], coordsfile["y_coord"])
-        if s.crosshair:
-            s.placeCrosshair(s.cursor_coordinates[0], s.cursor_coordinates[1])
+        if fn != "":
+            self.widgets["custom_coords_path"].config(text=fn)
+            self.widgets["custom_loop_button"].config(state="normal")
+            coordsfile = json.load(open(fn))
+            if self.miniplot != None:
+                self.miniplot.onClosing()
+                self.miniplot = None
+            else:
+                s = self.subwindow
+                s.removeCrosshair()
+                s.clearAnnotations()
+                s.plotCustomCoords(coordsfile["x_coord"], coordsfile["y_coord"])
+                if s.crosshair:
+                    s.placeCrosshair(s.cursor_coordinates[0], s.cursor_coordinates[1])
+        else:
+            print("Select a .json file.")
 
     def startCustomLoopEvent(self):
         self.widgets["start_button"].config(state="disabled")
@@ -195,9 +205,11 @@ class MainApp(tk.Tk):
         self.widgets["custom_loop_button"].config(state="disabled")
 
         coordsfile = json.load(open(self.widgets["custom_coords_path"].cget("text")))
-        if self.miniplot is None:
-            self.miniplot = PopoutPlot(self.subwindow, coordsfile["x_coord"], coordsfile["y_coord"])
+
+        if self.miniplot == None:
+            self.miniplot = PopoutPlot(self, self.subwindow, coordsfile["x_coord"], coordsfile["y_coord"])
         self.miniplot.takeScan()
+        self.miniplot.saveScan()
         # SAVE PLOT WITH MASK.
 
         self.widgets["interrupt_button"].config(state="disabled")

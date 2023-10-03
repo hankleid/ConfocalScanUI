@@ -269,7 +269,7 @@ class ScanWindow(tk.Toplevel):
         self.fig = plt.figure(figsize = (max(4, dimx), max(2, dimy)))
         canvas = FigureCanvasTkAgg(self.fig, master=frm_plot)
         self.ax = self.fig.add_subplot(111)
-        self.widgets["canvas"] = canvas
+        self.canvas = canvas
         # Put canvas on the GUI.
         canvas.draw()
         canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
@@ -295,7 +295,7 @@ class ScanWindow(tk.Toplevel):
         measurement = random.random()*10000 * move
         # Adjust measurement to count/s.
         measurement /= int_time
-        measurement = abs(round(measurement, 2))
+        measurement = abs(round(measurement, 3))
         self.widgets["counts"].config(text=str(measurement))
         return measurement
 
@@ -310,6 +310,7 @@ class ScanWindow(tk.Toplevel):
         self.widgets["save_button"].configure(state="disabled")
 
         self.currently_scanning = True
+        self.datastream = []
 
         # Scan start.
         for y_i in range(len(self.y_axis)):
@@ -364,8 +365,8 @@ class ScanWindow(tk.Toplevel):
                             vmin=self.counts_minmax[0],
                             vmax=self.counts_minmax[1])
         self.fig.colorbar(plot, ax=self.ax)
-        self.widgets["canvas"].draw()
-        self.widgets["canvas"].get_tk_widget().pack(expand=True)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().pack(expand=True)
 
         # Update the UI... tkinter made me do it :/
         self.update()
@@ -420,7 +421,7 @@ class ScanWindow(tk.Toplevel):
         ## CONNECTS THE MOUSE CLICK EVENT HANDLING CONNECTION TO THE MATPLOTLIB PLOT.
         ## CALLBACK ID (cid) STORED IN WIDGETS FOR KEEPING TRACK OF THE HANDLER.
         ##
-        self.widgets["plot_clicker"] = self.widgets["canvas"].mpl_connect('button_press_event', lambda e: self.onClickingPlot(e))
+        self.widgets["plot_clicker"] = self.canvas.mpl_connect('button_press_event', lambda e: self.onClickingPlot(e))
 
     def disconnectPlotClicker(self):
         ##
@@ -428,7 +429,7 @@ class ScanWindow(tk.Toplevel):
         ## CALLBACK ID (cid) STORED IN WIDGETS FOR KEEPING TRACK OF THE HANDLER.
         ##
         cid = self.widgets["plot_clicker"]
-        self.widgets["canvas"].mpl_disconnect(cid)
+        self.canvas.mpl_disconnect(cid)
 
     def moveCursor(self):
         print("cursor move")
@@ -437,12 +438,12 @@ class ScanWindow(tk.Toplevel):
         ##
         ## PLACES A CROSSHAIR (MARKER + PREPENDICULAR LINES) ON THE PLOT AT (x_coord, y_coord).
         ##
-        x_coord = round(x_coord, 2)
-        y_coord = round(y_coord, 2)
+        x_coord = round(x_coord, 3)
+        y_coord = round(y_coord, 3)
         self.ax.axhline(y = y_coord, color = 'r', linestyle = '-', linewidth=1)
         self.ax.axvline(x = x_coord, color = 'r', linestyle = '-', linewidth=1)
         self.ax.plot([x_coord], [y_coord], "s", markersize=5.5, markerfacecolor="None", markeredgewidth=1, markeredgecolor="cyan")
-        self.widgets["canvas"].draw()
+        self.canvas.draw()
         self.cursor_coordinates = [x_coord, y_coord]
         self.widgets["cursor_coordinates"].config(text=f"({x_coord}, {y_coord})")
         self.crosshair = True
@@ -479,14 +480,14 @@ class ScanWindow(tk.Toplevel):
                             markeredgewidth=l.get_markeredgewidth(),
                             markeredgecolor=l.get_markeredgecolor(),
                             linestyle=l.get_linestyle())
-        self.widgets["canvas"].draw()
+        self.canvas.draw()
 
     def plotCustomCoords(self, x_coords, y_coords):
         ##
         ## OVERLAYS x_coords AND y_coords ONTO THE SCAN.
         ##
         self.ax.plot(x_coords, y_coords, "o", markersize=3, markerfacecolor="None", markeredgewidth=1, markeredgecolor='cyan', linestyle = 'None')
-        self.widgets["canvas"].draw()
+        self.canvas.draw()
         # Update the UI... tkinter made me do it :/
         self.update()
         self.update_idletasks()
@@ -506,7 +507,7 @@ class ScanWindow(tk.Toplevel):
         self.ax.plot(x_coords, y_coords, "*", markersize=5.5, markerfacecolor="None", markeredgewidth=1, markeredgecolor="cyan")
         if self.crosshair:
             self.placeCrosshair(self.cursor_coordinates[0], self.cursor_coordinates[1])
-        self.widgets["canvas"].draw()
+        self.canvas.draw()
 
         peak_data = {'peaks_x_coords': x_coords, 'peaks_y_coords': y_coords}
         self.save_data["peaks"] = peak_data
@@ -577,4 +578,5 @@ class ScanWindow(tk.Toplevel):
             self.parent_app.interruptScanEvent()
         self.parent_app.widgets["custom_json_button"].configure(state="disabled")
         self.destroy()
+        self.update()
     
