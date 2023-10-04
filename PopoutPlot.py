@@ -24,16 +24,6 @@ class PopoutPlot(tk.Toplevel):
         self.x_coords = [round(x, 3) for x in x_coords]
         self.y_coords = [round(y, 3) for y in y_coords]
         self.scan_data = np.zeros(len(x_coords))
-        # x_step = self.getPixelSize(self.x_coords)
-        # y_step = self.getPixelSize(self.y_coords)
-        # print(x_step, y_step)
-        # _x_axis = np.linspace(min(self.x_coords), max(self.x_coords), int((max(self.x_coords) - min(self.x_coords)) / x_step)+1).tolist()
-        # _y_axis = np.linspace(min(self.y_coords), max(self.y_coords), int((max(self.y_coords) - min(self.y_coords)) / y_step)+1).tolist()
-        # self.x_axis = [round(x, 3) for x in _x_axis]
-        # self.y_axis = [round(y, 3) for y in _y_axis]
-        # self.smoothList(self.x_axis, x_step)
-        # self.smoothList(self.y_axis, y_step)
-        # self.pixels = np.zeros((len(self.x_axis), len(self.y_axis)))
 
         # Frame that holds the scan.
         frm_plot = tk.Frame(
@@ -81,31 +71,20 @@ class PopoutPlot(tk.Toplevel):
         # Scan start.
         self.fig.clear()
         for i, x, y in zip(range(len(self.scan_data)), self.x_coords, self.y_coords):
-            # i, j = self.x_axis.index(x), self.y_axis.index(y)
-            # self.pixels[i][j] = self.scanwindow.takeMeasurement(x, y)
-
-            # self.fig.clear()
-            # ax = self.fig.add_subplot(111)
-            # plot = ax.imshow(self.pixels,
-            #                     extent=[min(self.x_coords), max(self.x_coords), min(self.y_coords), max(self.y_coords)],
-            #                     origin='lower',
-            #                     cmap=self.scanwindow.widgets["colorbar_palette"].get())
-            # self.fig.colorbar(plot, ax=ax)
-
             self.scan_data[i] = self.scanwindow.takeMeasurement(x, y)
             self.fig.clear()
             ax = self.fig.add_subplot(111)
-            plot = ax.scatter(self.x_coords,
+            ax.scatter(self.x_coords,
                        self.y_coords, 
-                       s=10,
+                       s=50,
                        marker='s',
-                       edgecolors='none',
+                       linewidths=0,
                        c=self.scan_data,
                        cmap="inferno")
-            ax.set_xlim((min(self.x_coords),max(self.x_coords)))
-            ax.set_ylim((min(self.y_coords),max(self.y_coords)))
+            # Set axis lims to preserve aspect ratio & make buffer room for the markers.
+            ax.set_xlim((min(self.x_coords)-0.02,max(self.x_coords)+0.02))
+            ax.set_ylim((min(self.y_coords)-0.02,max(self.y_coords)+0.02))
             ax.set_facecolor("black")
-            #self.fig.colorbar(plot, ax)
             self.canvas.draw()
             self.canvas.get_tk_widget().pack(expand=True)
 
@@ -117,11 +96,14 @@ class PopoutPlot(tk.Toplevel):
         print(self.scan_num)
     
     def onClosing(self):
-        s = self.subwindow
+        s = self.scanwindow
         s.removeCrosshair()
         s.clearAnnotations()
         if s.crosshair:
             s.placeCrosshair(s.cursor_coordinates[0], s.cursor_coordinates[1])
         self.controlmenu.miniplot = None
+
+        self.controlmenu.widgets["custom_loop_button"].config(state="normal")
+
         self.destroy()
         self.update()

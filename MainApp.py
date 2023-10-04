@@ -7,7 +7,7 @@ from PopoutPlot import *
 
 class MainApp(tk.Tk):
     widgets = {} # Grid --> frames --> widgets
-    subwindow = None
+    scanwindow = None
     miniplot = None
 
     def __init__(self, *args, **kwargs):
@@ -163,10 +163,10 @@ class MainApp(tk.Tk):
         self.widgets["custom_coords_path"].config(text="")
 
         print("start")
-        if self.subwindow is not None:
-            self.subwindow.destroy()
-        self.subwindow = ScanWindow(self)
-        self.subwindow.takeScan()
+        if self.scanwindow is not None:
+            self.scanwindow.destroy()
+        self.scanwindow = ScanWindow(self)
+        self.scanwindow.takeScan()
     
     def interruptScanEvent(self):
         ##
@@ -178,26 +178,21 @@ class MainApp(tk.Tk):
         print("interrupt")
     
     def uploadJsonEvent(self):
+        fn = str(askopenfilename())
+        s = self.scanwindow
+        s.removeCrosshair()
+        s.clearAnnotations()
         if self.miniplot != None:
             self.miniplot.onClosing()
-
-        fn = str(askopenfilename())
         if fn != "":
             self.widgets["custom_coords_path"].config(text=fn)
             self.widgets["custom_loop_button"].config(state="normal")
             coordsfile = json.load(open(fn))
-            if self.miniplot != None:
-                self.miniplot.onClosing()
-                self.miniplot = None
-            else:
-                s = self.subwindow
-                s.removeCrosshair()
-                s.clearAnnotations()
-                s.plotCustomCoords(coordsfile["x_coord"], coordsfile["y_coord"])
-                if s.crosshair:
-                    s.placeCrosshair(s.cursor_coordinates[0], s.cursor_coordinates[1])
+            s.plotCustomCoords(coordsfile["x_coord"], coordsfile["y_coord"])
         else:
             print("Select a .json file.")
+        if s.crosshair:
+            s.placeCrosshair(s.cursor_coordinates[0], s.cursor_coordinates[1])
 
     def startCustomLoopEvent(self):
         self.widgets["start_button"].config(state="disabled")
@@ -207,7 +202,14 @@ class MainApp(tk.Tk):
         coordsfile = json.load(open(self.widgets["custom_coords_path"].cget("text")))
 
         if self.miniplot == None:
-            self.miniplot = PopoutPlot(self, self.subwindow, coordsfile["x_coord"], coordsfile["y_coord"])
+            self.miniplot = PopoutPlot(self, self.scanwindow, coordsfile["x_coord"], coordsfile["y_coord"])
+            # Replot pattern on the main plot just in case user exited from miniplot but wanted to run again.
+            s = self.scanwindow
+            s.removeCrosshair()
+            s.clearAnnotations()
+            s.plotCustomCoords(coordsfile["x_coord"], coordsfile["y_coord"])
+            if s.crosshair:
+                s.placeCrosshair(s.cursor_coordinates[0], s.cursor_coordinates[1])
         self.miniplot.takeScan()
         self.miniplot.saveScan()
         # SAVE PLOT WITH MASK.

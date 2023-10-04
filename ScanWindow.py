@@ -12,7 +12,7 @@ from datetime import datetime
 from skimage.feature import peak_local_max
 
 class ScanWindow(tk.Toplevel):
-    parent_app = None # Main App from which this object is instantiated.
+    controlmenu = None # Main App from which this object is instantiated.
     ID = "" # Unique ID for this scan.
     currently_scanning = False
     scan_data = None # 2D numpy data.
@@ -34,7 +34,7 @@ class ScanWindow(tk.Toplevel):
         self.protocol("WM_DELETE_WINDOW", self.onClosing)
         self.ID = self.generateScanID()
         self.title("Scan "+self.ID)
-        self.parent_app = app # Access control menu through this App object.
+        self.controlmenu = app # Access control menu through this App object.
 
         self.columnconfigure([0, 1], minsize=200)
         self.rowconfigure(0, minsize=50)
@@ -59,7 +59,7 @@ class ScanWindow(tk.Toplevel):
         self.widgets["side_info_frame"] = frm_side_info
 
         # Init scan params.
-        parent_widgets = self.parent_app.widgets
+        parent_widgets = self.controlmenu.widgets
         x_start = float(parent_widgets["x_start"].get())
         x_end = float(parent_widgets["x_end"].get())
         x_step = float(parent_widgets["x_step"].get())
@@ -78,7 +78,7 @@ class ScanWindow(tk.Toplevel):
         # Initialize data array.
         self.scan_data = np.zeros((len(self.x_axis), len(self.y_axis))) #  Data for plotting and saving.
         self.save_data = {
-            "integration_time": float(self.parent_app.widgets["int_time"].get()),
+            "integration_time": float(self.controlmenu.widgets["int_time"].get()),
             "x_axis": self.x_axis.tolist(),
             "y_axis": self.y_axis.tolist(),
         }
@@ -286,7 +286,7 @@ class ScanWindow(tk.Toplevel):
         ##
         ## MOVES THE SCANNING MIRROR TO (x, y) THEN RETURNS A MEASUREMENT OF COUNTS.
         ##
-        int_time = float(self.parent_app.widgets["int_time"].get())
+        int_time = float(self.controlmenu.widgets["int_time"].get())
         # move FSM
         move = V_x * V_y
         # Wait for the duration of integration time.
@@ -315,7 +315,7 @@ class ScanWindow(tk.Toplevel):
         # Scan start.
         for y_i in range(len(self.y_axis)):
             for i in range(len(self.x_axis)):
-                if str(self.parent_app.widgets["interrupt_button"]["state"]) == "disabled":
+                if str(self.controlmenu.widgets["interrupt_button"]["state"]) == "disabled":
                     # If 'Interrupt' button is pressed, stop scan.
                     break
                 
@@ -344,7 +344,7 @@ class ScanWindow(tk.Toplevel):
         # Scan end.
         self.currently_scanning = False
         print("Scan done.")
-        self.parent_app.interruptScanEvent()
+        self.controlmenu.interruptScanEvent()
         self.save_data["scan_data"] = self.scan_data.tolist()
         # Enable buttons.
         self.widgets["cursor_center_button"].configure(state="normal")
@@ -403,11 +403,16 @@ class ScanWindow(tk.Toplevel):
         ## [Event Handler] Refreshes the crosshair placement at the location of the mouse click.
         ## Does nothing if the user clicks outside of the plot.
         ##
-        outside_plot = e.xdata is None or e.ydata is None
-        inside_colorbar = False
-        if not outside_plot:
-            inside_colorbar = e.ydata > self.xy_range[3] or e.xdata < self.xy_range[0]
-        if outside_plot or inside_colorbar:
+        xlim = self.ax.get_xlim()
+        ylim = self.ax.get_ylim()
+        outofbounds = False
+        undefined = e.xdata is None or e.ydata is None or outofbounds
+        if undefined is False:
+            outofbounds = e.xdata < min(xlim) or e.xdata > max(xlim) or e.ydata < min(ylim) or e.ydata > max(ylim)
+        # inside_colorbar = False
+        # if not outside_plot:
+        #     inside_colorbar = e.ydata > self.xy_range[3] or e.xdata < self.xy_range[0]
+        if undefined or outofbounds:
             # Out of bounds.
             return
         else:
@@ -464,6 +469,7 @@ class ScanWindow(tk.Toplevel):
         lines = []
         for _ in range(len(self.ax.lines)):
             lines.append(self.ax.lines.pop())
+        self.canvas.draw()
         return lines
 
     def replotAnnotations(self, lines):
@@ -487,6 +493,8 @@ class ScanWindow(tk.Toplevel):
         ## OVERLAYS x_coords AND y_coords ONTO THE SCAN.
         ##
         self.ax.plot(x_coords, y_coords, "o", markersize=3, markerfacecolor="None", markeredgewidth=1, markeredgecolor='cyan', linestyle = 'None')
+        # Refresh the axes so that the plot doesn't stretch to accommodate the new line.
+        self.resetAxes()
         self.canvas.draw()
         # Update the UI... tkinter made me do it :/
         self.update()
@@ -511,6 +519,10 @@ class ScanWindow(tk.Toplevel):
 
         peak_data = {'peaks_x_coords': x_coords, 'peaks_y_coords': y_coords}
         self.save_data["peaks"] = peak_data
+    
+    def resetAxes(self):
+        self.ax.set_xlim((self.xy_range[0], self.xy_range[1]))
+        self.ax.set_ylim((self.xy_range[2], self.xy_range[3]))
 
     def selectSaveFolder(self):
         self.widgets["folder"].config(text=str(askdirectory()))
@@ -575,8 +587,8 @@ class ScanWindow(tk.Toplevel):
         ## [Event Handler] CLOSES SCAN WINDOW & AJUSTS UI.
         ##
         if self.currently_scanning:
-            self.parent_app.interruptScanEvent()
-        self.parent_app.widgets["custom_json_button"].configure(state="disabled")
+            self.controlmenu.interruptScanEvent()
+        self.controlmenu.widgets["custom_json_button"].configure(state="disabled")
         self.destroy()
         self.update()
     
