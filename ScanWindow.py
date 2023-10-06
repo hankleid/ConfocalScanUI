@@ -150,8 +150,8 @@ class ScanWindow(tk.Toplevel):
             borderwidth=0
         )
         sideinfo_frames.append(frm_cursor)
-        btn_cursor_move = tk.Button(master=frm_cursor, text="Move to Cursor", command=self.moveCursor)
-        btn_cursor_center = tk.Button(master=frm_cursor, text="Center", command=self.moveCursor)
+        btn_cursor_move = tk.Button(master=frm_cursor, text="Move to Cursor", command=self.moveToCursor)
+        btn_cursor_center = tk.Button(master=frm_cursor, text="Center", command=self.moveToCenter)
         lbl_cursor_coordinates = tk.Label(
             master=frm_cursor,
             text="",
@@ -193,10 +193,11 @@ class ScanWindow(tk.Toplevel):
         btn_savepeaks.pack(padx=1, pady=1, side=tk.LEFT)
         frm_gopeak = tk.Frame(master=frm_peakfind, relief=tk.RAISED, borderwidth=0)
         lbl_gopeak = tk.Label(master=frm_gopeak, text="go to peak #:", padx=1, pady=1)
-        btn_gopeak = tk.Button(master=frm_gopeak, text="Next", command=lambda: 1)
+        btn_gopeak = tk.Button(master=frm_gopeak, text="Next", command=self.goToNextPeak)
         ent_gopeak = tk.Entry(master=frm_gopeak, width=2)
         ent_gopeak.insert(0, "0")
-        ent_gopeak.bind('<Return>', lambda e: 1)
+        ent_gopeak.bind('<Return>', lambda e: self.goToIndexPeak(int(self.widgets["peak_index"].get())))
+        self.widgets["peak_index"] = ent_gopeak
         lbl_gopeak.pack(padx=1, pady=1, side=tk.LEFT)
         ent_gopeak.pack(padx=1, pady=1, side=tk.LEFT)
         btn_gopeak.pack(padx=1, pady=1, side=tk.LEFT)
@@ -282,6 +283,9 @@ class ScanWindow(tk.Toplevel):
         now = datetime.now()
         return str(now.year)+str(now.month)+str(now.day)+str(now.hour)+str(now.minute)+str(now.second)
 
+    def moveScanningMirror(self, x_coord, y_coord):
+        print("move scanning mirror to " + str(x_coord) + ", " + str(y_coord))
+
     def takeMeasurement(self, V_x, V_y):
         ##
         ## MOVES THE SCANNING MIRROR TO (x, y) THEN RETURNS A MEASUREMENT OF COUNTS.
@@ -331,6 +335,7 @@ class ScanWindow(tk.Toplevel):
                 y = self.y_axis[y_i]
                 
                 # Take measurement & record data.
+                self.moveScanningMirror(x, y)
                 current_counts = self.takeMeasurement(x, y)
                 self.scan_data[x_i][y_i] = current_counts
                 self.datastream.append(current_counts)
@@ -436,9 +441,6 @@ class ScanWindow(tk.Toplevel):
         cid = self.widgets["plot_clicker"]
         self.canvas.mpl_disconnect(cid)
 
-    def moveCursor(self):
-        print("cursor move")
-
     def placeCrosshair(self, x_coord, y_coord):
         ##
         ## PLACES A CROSSHAIR (MARKER + PREPENDICULAR LINES) ON THE PLOT AT (x_coord, y_coord).
@@ -452,6 +454,20 @@ class ScanWindow(tk.Toplevel):
         self.cursor_coordinates = [x_coord, y_coord]
         self.widgets["cursor_coordinates"].config(text=f"({x_coord}, {y_coord})")
         self.crosshair = True
+
+    def moveToCursor(self):
+        ##
+        ## [Event Handler]
+        ##
+        x = self.cursor_coordinates[0]
+        y = self.cursor_coordinates[1]
+        self.moveScanningMirror(x, y)
+
+    def moveToCenter(self):
+        ##
+        ## [Event Handler]
+        ##
+        self.moveScanningMirror(0, 0)
 
     def removeCrosshair(self):
         ##
@@ -527,14 +543,20 @@ class ScanWindow(tk.Toplevel):
     def selectSaveFolder(self):
         self.widgets["folder"].config(text=str(askdirectory()))
 
+    def getName(self):
+        return self.ID + "_" + str(self.widgets["savename"].get())
+    
+    def getFolder(self):
+        return self.widgets["folder"].cget("text")
+    
     def getPath(self, suffix=None):
         ##
         ## GENERATES PATH FOR SAVING.
         ##
-        file_name = self.ID + "_" + str(self.widgets["savename"].get())
+        file_name = self.getName()
         if suffix != None:
-            file_name += "_" + suffix
-        path = os.path.join(self.widgets["folder"].cget("text"),file_name)
+            file_name += suffix
+        path = os.path.join(self.getFolder(),file_name)
         return path
 
     def saveJson(self, path):
@@ -544,6 +566,7 @@ class ScanWindow(tk.Toplevel):
         datafile_json = json.dumps(self.save_data, indent=4)
         with open(path+".json", "w") as file:   
             file.write(datafile_json)
+        print("Data file saved!")
     
     def savePlot(self, path, annotations=False):
         ##
@@ -557,13 +580,39 @@ class ScanWindow(tk.Toplevel):
             lines = self.clearAnnotations()
 
         self.fig.savefig(path, dpi='figure')
-        print("Data file & plot saved!")
+        print("Data plot saved!")
 
         if annotations == False:
             self.replotAnnotations(lines)
         if self.crosshair:
             # Replace crosshair.
             self.placeCrosshair(self.cursor_coordinates[0], self.cursor_coordinates[1])
+
+    def goToIndexPeak(self, index):
+        ##
+        ## [Event Handler] MOVES THE SCANNING MIRROR TO THE PEAK CORRESPONDING TO INDEX. 
+        ##
+        peaks_x_coords = self.save_data["peaks"]["peaks_x_coords"]
+        peaks_y_coords = self.save_data["peaks"]["peaks_y_coords"]
+        real_index = index % len(peaks_x_coords) # Wrap around list if user enters an index out of bounds.
+        if index != real_index:
+            self.widgets["peak_index"].delete(0, tk.END)
+            self.widgets["peak_index"].insert(0, str(real_index))
+        self.moveScanningMirror(peaks_x_coords[real_index], peaks_y_coords[real_index])
+    
+    def goToNextPeak(self):
+        ##
+        ## [Event Handler] 
+        ##
+        peaks_x_coords = self.save_data["peaks"]["peaks_x_coords"] # x or y arbitrary... only used to get number of peaks.
+        current_index = int(self.widgets["peak_index"].get())
+        # Wrap around list if necessary to get the next index.
+        next_index = (current_index + 1) % len(peaks_x_coords)
+        # Update the peak index entry widget with the new index.
+        self.widgets["peak_index"].delete(0, tk.END)
+        self.widgets["peak_index"].insert(0, str(next_index))
+        # Move the scanning mirror correspondingly.
+        self.goToIndexPeak(next_index)
 
     def onSaveScan(self):
         ##
@@ -578,7 +627,7 @@ class ScanWindow(tk.Toplevel):
         ## [Event Handler] 
         ##
         data_path = self.getPath()
-        plot_path = self.getPath(suffix="peakfinding")
+        plot_path = self.getPath(suffix="_peakfinding")
         self.saveJson(data_path)
         self.savePlot(plot_path, annotations=True)
 

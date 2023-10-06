@@ -212,7 +212,6 @@ class MainApp(tk.Tk):
                 s.placeCrosshair(s.cursor_coordinates[0], s.cursor_coordinates[1])
         self.miniplot.takeScan()
         self.miniplot.saveScan()
-        # SAVE PLOT WITH MASK.
 
         self.widgets["interrupt_button"].config(state="disabled")
         self.widgets["start_button"].config(state="normal")
