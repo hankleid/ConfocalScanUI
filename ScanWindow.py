@@ -189,11 +189,14 @@ class ScanWindow(tk.Toplevel):
         frm_peakbtns = tk.Frame(master=frm_peakfind, relief=tk.RAISED, borderwidth=0)
         btn_findpeaks = tk.Button(master=frm_peakbtns, text="Find Peaks", command=self.plotPeaks)
         btn_savepeaks = tk.Button(master=frm_peakbtns, text="Save Peaks", command=self.onSavePeaks)
+        self.widgets["find_peaks"] = btn_findpeaks
+        self.widgets["save_peaks"] = btn_savepeaks
         btn_findpeaks.pack(padx=1, pady=1, side=tk.LEFT)
         btn_savepeaks.pack(padx=1, pady=1, side=tk.LEFT)
         frm_gopeak = tk.Frame(master=frm_peakfind, relief=tk.RAISED, borderwidth=0)
         lbl_gopeak = tk.Label(master=frm_gopeak, text="go to peak #:", padx=1, pady=1)
         btn_gopeak = tk.Button(master=frm_gopeak, text="Next", command=self.goToNextPeak)
+        self.widgets["next_peak"] = btn_gopeak
         ent_gopeak = tk.Entry(master=frm_gopeak, width=2)
         ent_gopeak.insert(0, "0")
         ent_gopeak.bind('<Return>', lambda e: self.goToIndexPeak(int(self.widgets["peak_index"].get())))
@@ -286,7 +289,7 @@ class ScanWindow(tk.Toplevel):
     def moveScanningMirror(self, x_coord, y_coord):
         print("move scanning mirror to " + str(x_coord) + ", " + str(y_coord))
 
-    def takeMeasurement(self, V_x, V_y):
+    def measureCounts(self, V_x, V_y):
         ##
         ## MOVES THE SCANNING MIRROR TO (x, y) THEN RETURNS A MEASUREMENT OF COUNTS.
         ##
@@ -312,6 +315,7 @@ class ScanWindow(tk.Toplevel):
         self.widgets["cursor_move_button"].configure(state="disabled")
         self.widgets["cursor_center_button"].configure(state="disabled")
         self.widgets["save_button"].configure(state="disabled")
+        self.disablePeakFindingWidgets()
 
         self.currently_scanning = True
         self.datastream = []
@@ -336,7 +340,7 @@ class ScanWindow(tk.Toplevel):
                 
                 # Take measurement & record data.
                 self.moveScanningMirror(x, y)
-                current_counts = self.takeMeasurement(x, y)
+                current_counts = self.measureCounts(x, y)
                 self.scan_data[x_i][y_i] = current_counts
                 self.datastream.append(current_counts)
 
@@ -354,6 +358,7 @@ class ScanWindow(tk.Toplevel):
         # Enable buttons.
         self.widgets["cursor_center_button"].configure(state="normal")
         self.widgets["save_button"].configure(state="normal")
+        self.enablePeakFindingWidgets()
         # Enable clicking the plot for placing cursor.
         self.connectPlotClicker()
 
@@ -534,11 +539,55 @@ class ScanWindow(tk.Toplevel):
         self.canvas.draw()
 
         peak_data = {'peaks_x_coords': x_coords, 'peaks_y_coords': y_coords}
-        self.save_data["peaks"] = peak_data
+        self.save_data["peak_finding"] = peak_data
+        self.widgets["save_peaks"].configure(state="normal")
     
     def resetAxes(self):
         self.ax.set_xlim((self.xy_range[0], self.xy_range[1]))
         self.ax.set_ylim((self.xy_range[2], self.xy_range[3]))
+
+    def disablePeakFindingWidgets(self):
+        self.widgets["peak_min_sep"].configure(state="readonly")
+        self.widgets["peak_threshold"].configure(state="readonly")
+        self.widgets["find_peaks"].configure(state="disabled")
+        self.widgets["save_peaks"].configure(state="disabled")
+        self.widgets["next_peak"].configure(state="disabled")
+        self.widgets["peak_index"].configure(state="disabled")
+
+    def enablePeakFindingWidgets(self):
+        self.widgets["peak_min_sep"].configure(state="normal")
+        self.widgets["peak_threshold"].configure(state="normal")
+        self.widgets["find_peaks"].configure(state="normal")
+        if "peak_finding" in self.save_data: # If the user has already saved peak data:
+            self.widgets["save_peaks"].configure(state="normal")
+            self.widgets["next_peak"].configure(state="normal")
+            self.widgets["peak_index"].configure(state="normal")
+
+    def goToIndexPeak(self, index):
+        ##
+        ## [Event Handler] MOVES THE SCANNING MIRROR TO THE PEAK CORRESPONDING TO INDEX. 
+        ##
+        peaks_x_coords = self.save_data["peak_finding"]["peaks_x_coords"]
+        peaks_y_coords = self.save_data["peak_finding"]["peaks_y_coords"]
+        real_index = index % len(peaks_x_coords) # Wrap around list if user enters an index out of bounds.
+        if index != real_index:
+            self.widgets["peak_index"].delete(0, tk.END)
+            self.widgets["peak_index"].insert(0, str(real_index))
+        self.moveScanningMirror(peaks_x_coords[real_index], peaks_y_coords[real_index])
+    
+    def goToNextPeak(self):
+        ##
+        ## [Event Handler] 
+        ##
+        peaks_x_coords = self.save_data["peak_finding"]["peaks_x_coords"] # x or y arbitrary... only used to get number of peaks.
+        current_index = int(self.widgets["peak_index"].get())
+        # Wrap around list if necessary to get the next index.
+        next_index = (current_index + 1) % len(peaks_x_coords)
+        # Update the peak index entry widget with the new index.
+        self.widgets["peak_index"].delete(0, tk.END)
+        self.widgets["peak_index"].insert(0, str(next_index))
+        # Move the scanning mirror correspondingly.
+        self.goToIndexPeak(next_index)
 
     def selectSaveFolder(self):
         self.widgets["folder"].config(text=str(askdirectory()))
@@ -587,32 +636,6 @@ class ScanWindow(tk.Toplevel):
         if self.crosshair:
             # Replace crosshair.
             self.placeCrosshair(self.cursor_coordinates[0], self.cursor_coordinates[1])
-
-    def goToIndexPeak(self, index):
-        ##
-        ## [Event Handler] MOVES THE SCANNING MIRROR TO THE PEAK CORRESPONDING TO INDEX. 
-        ##
-        peaks_x_coords = self.save_data["peaks"]["peaks_x_coords"]
-        peaks_y_coords = self.save_data["peaks"]["peaks_y_coords"]
-        real_index = index % len(peaks_x_coords) # Wrap around list if user enters an index out of bounds.
-        if index != real_index:
-            self.widgets["peak_index"].delete(0, tk.END)
-            self.widgets["peak_index"].insert(0, str(real_index))
-        self.moveScanningMirror(peaks_x_coords[real_index], peaks_y_coords[real_index])
-    
-    def goToNextPeak(self):
-        ##
-        ## [Event Handler] 
-        ##
-        peaks_x_coords = self.save_data["peaks"]["peaks_x_coords"] # x or y arbitrary... only used to get number of peaks.
-        current_index = int(self.widgets["peak_index"].get())
-        # Wrap around list if necessary to get the next index.
-        next_index = (current_index + 1) % len(peaks_x_coords)
-        # Update the peak index entry widget with the new index.
-        self.widgets["peak_index"].delete(0, tk.END)
-        self.widgets["peak_index"].insert(0, str(next_index))
-        # Move the scanning mirror correspondingly.
-        self.goToIndexPeak(next_index)
 
     def onSaveScan(self):
         ##

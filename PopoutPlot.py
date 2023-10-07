@@ -71,17 +71,24 @@ class PopoutPlot(tk.Toplevel):
         # Scatter plot 3D, marker size function of minimum distance between points.
         self.scan_num += 1
         self.ID = self.scanwindow.ID + "_custom_" + str(self.scan_num)
+
+        self.scanwindow.disablePeakFindingWidgets()
+
         # Scan start.
         self.fig.clear()
         self.scan_data = np.zeros(len(self.x_coords))
         for i, x, y in zip(range(len(self.scan_data)), self.x_coords, self.y_coords):
-            self.scan_data[i] = self.scanwindow.takeMeasurement(x, y)
+            if str(self.controlmenu.widgets["interrupt_button"]["state"]) == "disabled":
+                    # If 'Interrupt' button is pressed, stop scan.
+                    break
+            self.scanwindow.moveScanningMirror(x, y)
+            self.scan_data[i] = self.scanwindow.measureCounts(x, y)
             self.fig.clear()
             ax = self.fig.add_subplot(111)
             ax.scatter(self.x_coords,
                        self.y_coords, 
-                       s=50,
-                       marker='s',
+                       s=100,
+                       marker='H',
                        linewidths=0,
                        c=self.scan_data,
                        cmap="inferno")
@@ -95,22 +102,25 @@ class PopoutPlot(tk.Toplevel):
             # Update the UI... tkinter made me do it :/
             self.update()
             self.update_idletasks()
+
         self.save_data[self.scan_num] = self.scan_data.tolist()
         self.scanwindow.save_data["custom_points"] = self.save_data
+
+        self.scanwindow.enablePeakFindingWidgets()
 
     def saveScan(self):
         s = self.scanwindow
         data_path = s.getPath()
         
         i = 1
-        custom_slices_folder = s.getFolder() + "/custom_slices_" + str(i)
+        custom_slices_folder = s.getFolder() + "/" + s.getName() + "_custom_" + str(i)
         while os.path.exists(custom_slices_folder):
             i += 1
-            custom_slices_folder = s.getFolder() + "/custom_slices_" + str(i)
+            custom_slices_folder = s.getFolder() + "/" + s.getName() + "_custom_" + str(i)
         if self.scan_num > 1: 
             # Place scan in the same folder as its bretheren.
             i -= 1
-            custom_slices_folder = s.getFolder() + "/custom_slices_" + str(max(1, i))
+            custom_slices_folder = s.getFolder() + "/" + s.getName() + "_custom_" + str(max(1, i))
         else:
              # Create a new folder only if this is the first scan (of any new coords),
              # since scan_num resets to 1 after uploading a new file.
@@ -123,16 +133,17 @@ class PopoutPlot(tk.Toplevel):
         s.savePlot(plot_path, annotations=True) # Plot the main scan with the custom points mask on the plot.
         slices_path = custom_slices_folder + "/" + s.getName() + "_custom_" + str(i) + "_" + str(self.scan_num)
         self.fig.savefig(slices_path, dpi='figure') # Save the slice plot itself.
-    
+
     def onClosing(self):
         s = self.scanwindow
         s.removeCrosshair()
         s.clearAnnotations()
         if s.crosshair:
             s.placeCrosshair(s.cursor_coordinates[0], s.cursor_coordinates[1])
+        
         self.controlmenu.miniplot = None
-
         self.controlmenu.widgets["custom_loop_button"].config(state="normal")
+        self.controlmenu.interruptScanEvent()
 
         self.destroy()
         self.update()
