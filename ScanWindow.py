@@ -20,6 +20,7 @@ class ScanWindow(tk.Toplevel):
     xy_range = [0, 0, 0, 0] # x range, y range.
     x_axis = None # X axis array.
     y_axis = None # Y axis array.
+    DAQ = None # DAQ dcitionary that hosts the hardware.
     save_data = {} # Dictionary that records scan & other data.
     fig = None # Matplotlib figure for the scan.
     ax = None # The actual plot.
@@ -29,12 +30,13 @@ class ScanWindow(tk.Toplevel):
     autoscale = True # True if autoscale; False if user input. For colorbar.
     crosshair = False # True if there is supposed to be a crosshair (i.e. if a crosshair has ever been placed).
 
-    def __init__(self, app, *args, **kwargs):
+    def __init__(self, app, DAQ, *args, **kwargs):
         tk.Toplevel.__init__(self, *args, **kwargs)
         self.protocol("WM_DELETE_WINDOW", self.onClosing)
         self.ID = self.generateScanID()
         self.title("Scan "+self.ID)
         self.controlmenu = app # Access control menu through this App object.
+        self.DAQ = DAQ
 
         self.columnconfigure([0, 1], minsize=200)
         self.rowconfigure(0, minsize=50)
@@ -287,24 +289,7 @@ class ScanWindow(tk.Toplevel):
         return str(now.year)+str(now.month)+str(now.day)+str(now.hour)+str(now.minute)+str(now.second)
 
     def moveScanningMirror(self, x_coord, y_coord):
-        print("move scanning mirror to " + str(x_coord) + ", " + str(y_coord))
-
-    def measureCounts(self, V_x, V_y):
-        ##
-        ## MOVES THE SCANNING MIRROR TO (x, y) THEN RETURNS A MEASUREMENT OF COUNTS.
-        ##
-        int_time = float(self.controlmenu.widgets["int_time"].get())
-        # move FSM
-        move = V_x * V_y
-        # Wait for the duration of integration time.
-        time.sleep(int_time * 1e-3)
-        # Take measurement from SPCM.
-        measurement = random.random()*10000 * move
-        # Adjust measurement to count/s.
-        measurement /= int_time
-        measurement = abs(round(measurement, 3))
-        self.widgets["counts"].config(text=str(measurement))
-        return measurement
+        return #print("move scanning mirror to " + str(x_coord) + ", " + str(y_coord))
 
     def takeScan(self):
         ##
@@ -319,7 +304,9 @@ class ScanWindow(tk.Toplevel):
 
         self.currently_scanning = True
         self.datastream = []
+        int_time = float(self.controlmenu.widgets["int_time"].get()) / 1000
 
+        SPCM = self.DAQ["SPCM"]
         # Scan start.
         for y_i in range(len(self.y_axis)):
             for i in range(len(self.x_axis)):
@@ -340,9 +327,11 @@ class ScanWindow(tk.Toplevel):
                 
                 # Take measurement & record data.
                 self.moveScanningMirror(x, y)
-                current_counts = self.measureCounts(x, y)
-                self.scan_data[x_i][y_i] = current_counts
-                self.datastream.append(current_counts)
+                measurement = SPCM.readCounts(integration_time=int_time)
+
+                self.scan_data[x_i][y_i] = measurement
+                self.datastream.append(measurement)
+                self.widgets["counts"].config(text=str(measurement))
 
                 if self.autoscale:
                     self.colorbar_minmax[0] = min(self.datastream)
@@ -351,6 +340,7 @@ class ScanWindow(tk.Toplevel):
                 self.plotWithColorbar()
         
         # Scan end.
+        #SPCM.stop()
         self.currently_scanning = False
         print("Scan done.")
         self.controlmenu.interruptScanEvent()

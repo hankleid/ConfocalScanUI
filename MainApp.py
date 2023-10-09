@@ -9,10 +9,12 @@ class MainApp(tk.Tk):
     widgets = {} # Grid --> frames --> widgets
     scanwindow = None
     miniplot = None
+    DAQ = None
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, DAQ, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
         self.title("Control Menu")
+        self.DAQ = DAQ
         self.generateControlMenu() # Grid is generated in this method
 
     def generateControlMenu(self):
@@ -165,7 +167,7 @@ class MainApp(tk.Tk):
         print("start")
         if self.scanwindow is not None:
             self.scanwindow.destroy()
-        self.scanwindow = ScanWindow(self)
+        self.scanwindow = ScanWindow(self, self.DAQ)
         self.scanwindow.takeScan()
     
     def interruptScanEvent(self):
