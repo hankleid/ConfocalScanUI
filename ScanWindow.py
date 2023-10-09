@@ -20,14 +20,14 @@ class ScanWindow(tk.Toplevel):
     xy_range = [0, 0, 0, 0] # x range, y range.
     x_axis = None # X axis array.
     y_axis = None # Y axis array.
-    save_data = {}
+    save_data = {} # Dictionary that records scan & other data.
     fig = None # Matplotlib figure for the scan.
     ax = None # The actual plot.
     widgets = {} # Buttons, labels, entries, etc. relevant to the app.
     cursor_coordinates = [0,0] # Coordinates for the current placement of the clicked cursor.
-    counts_minmax = [0,0] # Min and max values for the plotting colorbar.
+    colorbar_minmax = [0,0] # Min and max values for the plotting colorbar.
     autoscale = True # True if autoscale; False if user input. For colorbar.
-    crosshair = False
+    crosshair = False # True if there is supposed to be a crosshair (i.e. if a crosshair has ever been placed).
 
     def __init__(self, app, *args, **kwargs):
         tk.Toplevel.__init__(self, *args, **kwargs)
@@ -345,8 +345,8 @@ class ScanWindow(tk.Toplevel):
                 self.datastream.append(current_counts)
 
                 if self.autoscale:
-                    self.counts_minmax[0] = min(self.datastream)
-                    self.counts_minmax[1] = max(self.datastream)
+                    self.colorbar_minmax[0] = min(self.datastream)
+                    self.colorbar_minmax[1] = max(self.datastream)
             
                 self.plotWithColorbar()
         
@@ -372,8 +372,8 @@ class ScanWindow(tk.Toplevel):
                             extent=self.xy_range,
                             origin='lower',
                             cmap=self.widgets["colorbar_palette"].get(),
-                            vmin=self.counts_minmax[0],
-                            vmax=self.counts_minmax[1])
+                            vmin=self.colorbar_minmax[0],
+                            vmax=self.colorbar_minmax[1])
         self.fig.colorbar(plot, ax=self.ax)
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(expand=True)
@@ -389,21 +389,20 @@ class ScanWindow(tk.Toplevel):
         self.autoscale = autoscale
         if self.autoscale:
             # Autoscale.
-            self.counts_minmax[0] = min(self.datastream)
-            self.counts_minmax[1] = max(self.datastream)
-            print(f"Min/max counts: {self.counts_minmax[0]}, {self.counts_minmax[1]}")
+            self.colorbar_minmax[0] = min(self.datastream)
+            self.colorbar_minmax[1] = max(self.datastream)
+            print(f"Min/max counts: {self.colorbar_minmax[0]}, {self.colorbar_minmax[1]}")
         else:
             # User min/max.
-            self.counts_minmax[0] = float(self.widgets["user_min"].get())
-            self.counts_minmax[1] = float(self.widgets["user_max"].get())
+            self.colorbar_minmax[0] = float(self.widgets["user_min"].get())
+            self.colorbar_minmax[1] = float(self.widgets["user_max"].get())
         if not self.currently_scanning:
             # Only update plot if scan is done. While scan is currently running, the plot gets refreshed often enough.
+            # Replot with new settings and replace crosshairs/annotations if they exist.
             if self.crosshair:
                 self.removeCrosshair()
             lines = self.clearAnnotations()
-
             self.plotWithColorbar()
-
             self.replotAnnotations(lines)
             if self.crosshair:
                 self.placeCrosshair(self.cursor_coordinates[0], self.cursor_coordinates[1])
@@ -416,17 +415,15 @@ class ScanWindow(tk.Toplevel):
         xlim = self.ax.get_xlim()
         ylim = self.ax.get_ylim()
         outofbounds = False
-        undefined = e.xdata is None or e.ydata is None or outofbounds
+        undefined = e.xdata is None or e.ydata is None
         if undefined is False:
             outofbounds = e.xdata < min(xlim) or e.xdata > max(xlim) or e.ydata < min(ylim) or e.ydata > max(ylim)
-        # inside_colorbar = False
-        # if not outside_plot:
-        #     inside_colorbar = e.ydata > self.xy_range[3] or e.xdata < self.xy_range[0]
         if undefined or outofbounds:
             # Out of bounds.
             return
         else:
-            self.removeCrosshair() # Remove previous crosshair.
+            # Remove previous crosshair (if exists) then place the crosshair at the mouse click location.
+            self.removeCrosshair()
             self.placeCrosshair(e.xdata, e.ydata)
             if str(self.widgets["cursor_move_button"]["state"]) == "disabled":
                 self.widgets["cursor_move_button"].configure(state="normal")
@@ -462,7 +459,7 @@ class ScanWindow(tk.Toplevel):
 
     def moveToCursor(self):
         ##
-        ## [Event Handler]
+        ## [Event Handler] MOVE THE SCANNING MIRROR TO WHERE THE CURSOR IS.
         ##
         x = self.cursor_coordinates[0]
         y = self.cursor_coordinates[1]
@@ -470,7 +467,7 @@ class ScanWindow(tk.Toplevel):
 
     def moveToCenter(self):
         ##
-        ## [Event Handler]
+        ## [Event Handler] MOVE THE SCANNING MIRROR TO (0, 0).
         ##
         self.moveScanningMirror(0, 0)
 
@@ -495,7 +492,8 @@ class ScanWindow(tk.Toplevel):
 
     def replotAnnotations(self, lines):
         ##
-        ## PLOTS ALL THE LINES IN lines.
+        ## PLOTS ALL THE LINES IN lines. 
+        ## lines IS A 1D ARRAY OF matplotlib 2DLine objects.
         ##
         for l in lines:
             self.ax.plot(l.get_xdata(),
@@ -523,7 +521,7 @@ class ScanWindow(tk.Toplevel):
 
     def plotPeaks(self):
         ##
-        ## [Event Handler] FINDS AND PLOTS PEAKS IN THE DATA. Code adapted from Hope Lee.
+        ## [Event Handler] FINDS PEAKS IN THE DATA AND PLOTS THEM. Code adapted from Hope Lee.
         ##
         self.removeCrosshair()
         self.clearAnnotations()
@@ -543,10 +541,17 @@ class ScanWindow(tk.Toplevel):
         self.widgets["save_peaks"].configure(state="normal")
     
     def resetAxes(self):
+        ##
+        ## SETS THE PLOT AXES TO THE MIN AND MAX OF THE DATA RANGE
+        ## TO PREVENT CUSTOM POINTS PLOTTING FROM STRETCHING THE AXES.
+        ##
         self.ax.set_xlim((self.xy_range[0], self.xy_range[1]))
         self.ax.set_ylim((self.xy_range[2], self.xy_range[3]))
 
     def disablePeakFindingWidgets(self):
+        ##
+        ## DISABLES ALL PEAK FINDING UI ELEMENTS.
+        ##
         self.widgets["peak_min_sep"].configure(state="readonly")
         self.widgets["peak_threshold"].configure(state="readonly")
         self.widgets["find_peaks"].configure(state="disabled")
@@ -555,6 +560,9 @@ class ScanWindow(tk.Toplevel):
         self.widgets["peak_index"].configure(state="disabled")
 
     def enablePeakFindingWidgets(self):
+        ##
+        ## ENABLES THE APPROPRIATE PEAK FINDING UI ELEMENTS.
+        ##
         self.widgets["peak_min_sep"].configure(state="normal")
         self.widgets["peak_threshold"].configure(state="normal")
         self.widgets["find_peaks"].configure(state="normal")
@@ -577,9 +585,10 @@ class ScanWindow(tk.Toplevel):
     
     def goToNextPeak(self):
         ##
-        ## [Event Handler] 
+        ## [Event Handler] INCREMEMNTS THE PEAK # IN THE UI THEN POINTS THE SCANNING
+        ## MIRROR AT THAT NEXT PEAK.
         ##
-        peaks_x_coords = self.save_data["peak_finding"]["peaks_x_coords"] # x or y arbitrary... only used to get number of peaks.
+        peaks_x_coords = self.save_data["peak_finding"]["peaks_x_coords"] # x or y arbitrary since the lists are the same length....
         current_index = int(self.widgets["peak_index"].get())
         # Wrap around list if necessary to get the next index.
         next_index = (current_index + 1) % len(peaks_x_coords)
@@ -590,12 +599,21 @@ class ScanWindow(tk.Toplevel):
         self.goToIndexPeak(next_index)
 
     def selectSaveFolder(self):
+        ##
+        ## STORES THE USER-SELECTED PATH IN self.widgets.
+        ##
         self.widgets["folder"].config(text=str(askdirectory()))
 
     def getName(self):
+        ##
+        ## RETURNS THE USER-INPUTTED FILENAME.
+        ##
         return self.ID + "_" + str(self.widgets["savename"].get())
     
     def getFolder(self):
+        ##
+        ## RETURNS THE USER-SELECTED PATH AS A STRING.
+        ##
         return self.widgets["folder"].cget("text")
     
     def getPath(self, suffix=None):
@@ -619,9 +637,8 @@ class ScanWindow(tk.Toplevel):
     
     def savePlot(self, path, annotations=False):
         ##
-        ## SAVES PLOT AS PNG.
+        ## SAVES PLOT AS PNG. IF annotations IS FALSE, SAVE A CLEAR PLOT.
         ##
-        # Save the figure (without annotations if clear==True).
         lines = []
         if self.crosshair:
             self.removeCrosshair()
@@ -632,6 +649,7 @@ class ScanWindow(tk.Toplevel):
         print("Data plot saved!")
 
         if annotations == False:
+            # Replace annotations.
             self.replotAnnotations(lines)
         if self.crosshair:
             # Replace crosshair.
@@ -639,7 +657,7 @@ class ScanWindow(tk.Toplevel):
 
     def onSaveScan(self):
         ##
-        ## [Event Handler] 
+        ## [Event Handler] SAVES THE DATA AND PLOT FOR THE SCAN (NO ANNOTATIONS).
         ##
         path = self.getPath()
         self.saveJson(path)
@@ -647,7 +665,7 @@ class ScanWindow(tk.Toplevel):
     
     def onSavePeaks(self):
         ##
-        ## [Event Handler] 
+        ## [Event Handler] SAVES THE PEAKS DATA AND PLOT WITH ANNOTATIONS.
         ##
         data_path = self.getPath()
         plot_path = self.getPath(suffix="_peakfinding")

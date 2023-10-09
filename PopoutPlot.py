@@ -1,22 +1,18 @@
 import tkinter as tk
-from tkinter import ttk
-from tkinter.filedialog import askdirectory
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from math import gcd
 import os
 
 class PopoutPlot(tk.Toplevel):
     pixels = None # 2D numpy data.
-    x_coords = []
-    y_coords = []
-    scan_data = None # z-data, list same length and dimension as x_coord and y_coords.
-    ID = ""
-    scanwindow = None
-    controlwindow = None
-    scan_num = 0
-    save_data = {}
+    x_coords = [] # X coordinates of points to plot.
+    y_coords = [] # Y coordinates of points to plot.
+    scan_data = None # Z-data, list same length and dimension as x_coord and y_coords.
+    scanwindow = None # ScanWindow object associated with the PopoutPlot.
+    controlwindow = None # MainApp
+    scan_num = 0 # Number of repetitions of the scan (for watching it over time).
+    save_data = {} # Dictionary that records the scan. Appended to the controlwindow save_data.
 
     def __init__(self, controlmenu, scanwindow, x_coords, y_coords, *args, **kwargs):
         tk.Toplevel.__init__(self, *args, **kwargs)
@@ -50,28 +46,11 @@ class PopoutPlot(tk.Toplevel):
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
-    def getPixelSize(self, arr):
-        ##
-        ## Returns greatest common denominator of all elements in the array.
-        ##
-        ints = [int(i*1e3) for i in arr]
-        max_gcd = gcd(ints[1], ints[0])
-        for i in range(2, len(ints)):
-            max_gcd = gcd(max_gcd, ints[i])
-        return abs(max_gcd/(1e3))
-    
-    def smoothList(self, arr, step):
-        # make sure spacing is even between elements; if not, fill in the gaps.
-        for i in range(1, len(arr)):
-            if round(abs(arr[i]-arr[i-1]), 3) != step:
-                newval = (arr[i]+arr[i-1])/2
-                arr.insert(i, newval)
-
     def takeScan(self):
-        # Scatter plot 3D, marker size function of minimum distance between points.
+        ##
+        ## TAKES A SCAN.
+        ##
         self.scan_num += 1
-        self.ID = self.scanwindow.ID + "_custom_" + str(self.scan_num)
-
         self.scanwindow.disablePeakFindingWidgets()
 
         # Scan start.
@@ -109,6 +88,10 @@ class PopoutPlot(tk.Toplevel):
         self.scanwindow.enablePeakFindingWidgets()
 
     def saveScan(self):
+        ##
+        ## SAVES A SCAN. IF IT'S THE FIRST SCAN, MAKES A NEW FOLDER FOR IT.
+        ## IF NOT THE FIRST SCAN, ADDS TO THE EXISTING FOLDER.
+        ##
         s = self.scanwindow
         data_path = s.getPath()
         
@@ -135,6 +118,9 @@ class PopoutPlot(tk.Toplevel):
         self.fig.savefig(slices_path, dpi='figure') # Save the slice plot itself.
 
     def onClosing(self):
+        ##
+        ## [Event Handler] CLOSES THIS WINDOW AND ADJUSTS.
+        ##
         s = self.scanwindow
         s.removeCrosshair()
         s.clearAnnotations()
