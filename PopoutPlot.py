@@ -16,6 +16,7 @@ class PopoutPlot(tk.Toplevel):
 
     def __init__(self, controlmenu, scanwindow, x_coords, y_coords, *args, **kwargs):
         tk.Toplevel.__init__(self, *args, **kwargs)
+        self.resizable(False, False)
         self.protocol("WM_DELETE_WINDOW", self.onClosing)
         self.controlmenu = controlmenu
         self.scanwindow = scanwindow

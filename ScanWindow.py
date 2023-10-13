@@ -3,9 +3,7 @@ import json
 import tkinter as tk
 from tkinter import ttk, StringVar
 from tkinter.filedialog import askdirectory
-import random
 import numpy as np
-import time
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from datetime import datetime
@@ -32,6 +30,7 @@ class ScanWindow(tk.Toplevel):
 
     def __init__(self, app, DAQ, *args, **kwargs):
         tk.Toplevel.__init__(self, *args, **kwargs)
+        self.resizable(False, False)
         self.protocol("WM_DELETE_WINDOW", self.onClosing)
         self.ID = self.generateScanID()
         self.title("Scan "+self.ID)
@@ -45,7 +44,7 @@ class ScanWindow(tk.Toplevel):
         frm_side_info = tk.Frame(
             master=self,
             relief=tk.RAISED,
-            borderwidth=1
+            borderwidth=0
         )
         # Frame that holds the scan.
         frm_scan = tk.Frame(
@@ -266,8 +265,8 @@ class ScanWindow(tk.Toplevel):
 
         # Initialize matplotlib figure.
         aspectratio = (self.xy_range[3]-self.xy_range[2]) / (self.xy_range[1]-self.xy_range[0])
-        dimx = 7
-        dimy = 5.5
+        dimx = 9
+        dimy = 7.5
         if aspectratio >= 1: # Portrait.
             dimx /= aspectratio
         else: # Landscape.

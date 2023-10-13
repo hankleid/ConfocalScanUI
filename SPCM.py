@@ -1,7 +1,6 @@
 import nidaqmx
 from nidaqmx.constants import Edge, CountDirection
 import time
-from threading import Thread
 
 class SPCM():
     read_task = None
@@ -31,8 +30,9 @@ class SPCM():
             return counts
         else:
             self.read_task.start()
-            integrate = Thread(target=lambda: time.sleep(integration_time))
-            measure = Thread(target=lambda: self.read_task.read())
+            target_time = time.perf_counter() + integration_time
+            while time.perf_counter() < target_time:
+                pass
             counts = self.read_task.read()
             self.read_task.stop()
             return counts / integration_time

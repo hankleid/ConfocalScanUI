@@ -13,6 +13,7 @@ class MainApp(tk.Tk):
 
     def __init__(self, DAQ, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
+        self.resizable(False, False)
         self.title("Control Menu")
         self.DAQ = DAQ
         self.generateControlMenu() # Grid is generated in this method
