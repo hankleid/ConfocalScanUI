@@ -6,10 +6,10 @@ from PopoutPlot import *
 
 
 class MainApp(tk.Tk):
-    widgets = {} # Grid --> frames --> widgets
-    scanwindow = None
-    miniplot = None
-    DAQ = None
+    widgets = {} # Buttons, labels, entries, etc. relevant to the window.
+    scanwindow = None # ScanWindow object that's generated when the Start Scan button is pressed.
+    miniplot = None # PopoutPlot object that's generated when running custom coordinates.
+    DAQ = None # DAQ dcitionary that hosts the hardware.
 
     def __init__(self, DAQ, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)

@@ -22,7 +22,7 @@ class ScanWindow(tk.Toplevel):
     save_data = {} # Dictionary that records scan & other data.
     fig = None # Matplotlib figure for the scan.
     ax = None # The actual plot.
-    widgets = {} # Buttons, labels, entries, etc. relevant to the app.
+    widgets = {} # Buttons, labels, entries, etc. relevant to the window.
     cursor_coordinates = [0,0] # Coordinates for the current placement of the clicked cursor.
     colorbar_minmax = [0,0] # Min and max values for the plotting colorbar.
     autoscale = True # True if autoscale; False if user input. For colorbar.
@@ -82,6 +82,8 @@ class ScanWindow(tk.Toplevel):
             "integration_time": float(self.controlmenu.widgets["int_time"].get()),
             "x_axis": self.x_axis.tolist(),
             "y_axis": self.y_axis.tolist(),
+            "x_step": x_step,
+            "y_step": y_step
         }
         self.generateSideInfo()
         self.generatePlotHolder()
