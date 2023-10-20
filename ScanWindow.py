@@ -309,22 +309,23 @@ class ScanWindow(tk.Toplevel):
         int_time = float(self.controlmenu.widgets["int_time"].get()) / 1000
 
         # Scan start.
-        for y_i in range(len(self.y_axis)):
-            for i in range(len(self.x_axis)):
+        for x_i in range(len(self.x_axis)):
+            for i in range(len(self.y_axis)):
                 if str(self.controlmenu.widgets["interrupt_button"]["state"]) == "disabled":
                     # If 'Interrupt' button is pressed, stop scan.
                     break
                 
-                x_i = 0
+                y_i = 0
                 # Change direction every column.
-                if y_i % 2 == 0: # Even: scan in the forward direction.
-                    x_i = i
+                if x_i % 2 == 0: # Even: scan in the forward direction.
+                    y_i = i
                 else: # Odd: scan in the backward direction.
-                    x_i = -(i+1)
+                    y_i = -(i+1)
 
                 # Coordinates.
                 x = self.x_axis[x_i]
                 y = self.y_axis[y_i]
+                print("coord: " + str(x) + ", " + str(y))
                 
                 # Take measurement & record data.
                 self.scanning_mirror.moveTo(x, y)
@@ -358,7 +359,7 @@ class ScanWindow(tk.Toplevel):
         ## 
         self.fig.clear()
         self.ax = self.fig.add_subplot(111)
-        plot = self.ax.imshow(self.scan_data,
+        plot = self.ax.imshow(self.scan_data.T,
                             extent=self.xy_range,
                             origin='lower',
                             cmap=self.widgets["colorbar_palette"].get(),
