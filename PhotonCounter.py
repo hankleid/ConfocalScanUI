@@ -1,8 +1,7 @@
-import nidaqmx
 from nidaqmx.constants import Edge, CountDirection
 import time
 
-class SPCM():
+class PhotonCounter():
     read_task = None
     counter_channel = ""
     counter_terminal = ""

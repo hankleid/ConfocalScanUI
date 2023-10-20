@@ -1,9 +1,10 @@
 {
-    "SPCM": {
+    "Photon Counter": {
         "counter_channel": "Dev1/ctr0",
         "counter_terminal": "PFI0"
     },
-    "FSM": {
-        "": ""
+    "Scanning Mirror": {
+        "x_channel": "Dev1/ao1",
+        "y_channel": "Dev1/ao0"
     }
 }

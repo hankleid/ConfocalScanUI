@@ -32,12 +32,12 @@ class MainApp(tk.Tk):
         )
         widget_frames.append(frm_x)
         lbl_x = tk.Label(master=frm_x, text="x:", padx=1, pady=1)
-        ent_x_start = tk.Entry(master=frm_x, width=3)
-        ent_x_end = tk.Entry(master=frm_x, width=3)
+        ent_x_start = tk.Entry(master=frm_x, width=6)
+        ent_x_end = tk.Entry(master=frm_x, width=6)
         ent_x_start.insert(0, "-1")
         ent_x_end.insert(0, "1")
         lbl_x_step = tk.Label(master=frm_x, text="step:", padx=1, pady=1)
-        ent_x_step= tk.Entry(master=frm_x, width=5)
+        ent_x_step= tk.Entry(master=frm_x, width=8)
         ent_x_step.insert(0, "0.1")
         self.widgets["x_start"] = ent_x_start
         self.widgets["x_end"] = ent_x_end
@@ -56,12 +56,12 @@ class MainApp(tk.Tk):
         )
         widget_frames.append(frm_y)
         lbl_y = tk.Label(master=frm_y, text="y:", padx=1, pady=1)
-        ent_y_start = tk.Entry(master=frm_y, width=3)
-        ent_y_end = tk.Entry(master=frm_y, width=3)
+        ent_y_start = tk.Entry(master=frm_y, width=6)
+        ent_y_end = tk.Entry(master=frm_y, width=6)
         ent_y_start.insert(0, "-1")
         ent_y_end.insert(0, "1")
         lbl_y_step = tk.Label(master=frm_y, text="step:", padx=1, pady=1)
-        ent_y_step= tk.Entry(master=frm_y, width=5)
+        ent_y_step= tk.Entry(master=frm_y, width=8)
         ent_y_step.insert(0, "0.1")
         self.widgets["y_start"] = ent_y_start
         self.widgets["y_end"] = ent_y_end
