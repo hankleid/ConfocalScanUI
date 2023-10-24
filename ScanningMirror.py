@@ -11,7 +11,13 @@ class ScanningMirror():
         self.analog_task.ao_channels.add_ao_voltage_chan(self.x_channel)
         self.analog_task.ao_channels.add_ao_voltage_chan(self.y_channel)
     
-    def moveTo(self, x_voltage, y_voltage):
+    def start(self):
         self.analog_task.start()
-        self.analog_task.write([x_voltage, y_voltage])
+    
+    def stop(self):
         self.analog_task.stop()
+
+    def moveTo(self, x_voltage, y_voltage):
+        # self.analog_task.start()
+        self.analog_task.write([x_voltage, y_voltage])
+        # self.analog_task.stop()

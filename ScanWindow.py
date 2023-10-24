@@ -34,7 +34,7 @@ class ScanWindow(tk.Toplevel):
         tk.Toplevel.__init__(self, *args, **kwargs)
         self.resizable(False, False)
         self.protocol("WM_DELETE_WINDOW", self.onClosing)
-        self.ID = self.generateScanID()
+        self.ID = self.generateScanID() # Timestamp (not currently used)
         self.title("Scan "+self.ID)
         self.controlmenu = app # Access control menu through this App object.
         self.DAQ = DAQ
@@ -307,6 +307,7 @@ class ScanWindow(tk.Toplevel):
         self.currently_scanning = True
         self.datastream = []
         int_time = float(self.controlmenu.widgets["int_time"].get()) / 1000
+        self.scanning_mirror.start()
 
         # Scan start.
         for x_i in range(len(self.x_axis)):
@@ -325,7 +326,6 @@ class ScanWindow(tk.Toplevel):
                 # Coordinates.
                 x = self.x_axis[x_i]
                 y = self.y_axis[y_i]
-                print("coord: " + str(x) + ", " + str(y))
                 
                 # Take measurement & record data.
                 self.scanning_mirror.moveTo(x, y)
@@ -335,11 +335,14 @@ class ScanWindow(tk.Toplevel):
                 self.datastream.append(measurement)
                 self.widgets["counts"].config(text=str(measurement))
 
-                if self.autoscale:
-                    self.colorbar_minmax[0] = min(self.datastream)
-                    self.colorbar_minmax[1] = max(self.datastream)
+                self.update()
+                self.update_idletasks()
+
+            if self.autoscale: # Replot after every column.
+                self.colorbar_minmax[0] = min(self.datastream)
+                self.colorbar_minmax[1] = max(self.datastream)
             
-                self.plotWithColorbar()
+            self.plotWithColorbar()
         
         # Scan end.
         self.currently_scanning = False
@@ -602,7 +605,8 @@ class ScanWindow(tk.Toplevel):
         ##
         ## RETURNS THE USER-INPUTTED FILENAME.
         ##
-        return self.ID + "_" + str(self.widgets["savename"].get())
+        # return self.ID + "_" + str(self.widgets["savename"].get())
+        return str(self.widgets["savename"].get())
     
     def getFolder(self):
         ##
@@ -673,6 +677,7 @@ class ScanWindow(tk.Toplevel):
         if self.currently_scanning:
             self.controlmenu.interruptScanEvent()
         self.controlmenu.widgets["custom_json_button"].configure(state="disabled")
+        self.scanning_mirror.stop()
         self.destroy()
         self.update()
     
