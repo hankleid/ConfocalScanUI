@@ -111,7 +111,7 @@ class MainApp(tk.Tk):
         widget_frames.append(frm_fastscan)
         self.widgets["fast_scan_int"] = tk.IntVar() # It will be 0 or 1, for if the checkbox is checked or not.
         chkbox_fastscan = tk.Checkbutton(master=frm_fastscan, text='Fast Scan:', variable=self.widgets["fast_scan_int"])
-        self.widgets["fastscan_checkbox"] = chkbox_fastscan
+        self.widgets["fast_scan_checkbox"] = chkbox_fastscan
         chkbox_fastscan.pack(padx=5, pady=5, side=tk.LEFT)
 
         # Custom coordinates frame.
@@ -144,7 +144,7 @@ class MainApp(tk.Tk):
         ## Disables all widgets in the control menu to user input.
         ##
         self.widgets["start_button"].config(state='disabled')
-        self.widgets["fastscan_checkbox"].config(state='disabled')
+        self.widgets["fast_scan_checkbox"].config(state='disabled')
         self.widgets["interrupt_button"].config(state='disabled')
         self.widgets["custom_json_button"].config(state='disabled')
         self.widgets["custom_loop_button"].config(state='disabled')
@@ -161,7 +161,7 @@ class MainApp(tk.Tk):
         ## Enables all widgets in the control menu to user input.
         ##
         self.widgets["start_button"].config(state='normal')
-        self.widgets["fastscan_checkbox"].config(state='normal')
+        self.widgets["fast_scan_checkbox"].config(state='normal')
         self.widgets["interrupt_button"].config(state='normal')
         self.widgets["custom_json_button"].config(state='normal')
         self.widgets["custom_loop_button"].config(state='normal')

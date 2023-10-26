@@ -28,6 +28,7 @@ class ScanWindow(tk.Toplevel):
     cursor_coordinates = [0,0] # Coordinates for the current placement of the clicked cursor.
     colorbar_minmax = [0,0] # Min and max values for the plotting colorbar.
     autoscale = True # True if autoscale; False if user input. For colorbar.
+    aspectratio = None # None if matplotlib default aspect ratio; scalar value if user-inputted.
     crosshair = False # True if there is supposed to be a crosshair (i.e. if a crosshair has ever been placed).
 
     def __init__(self, app, DAQ, *args, **kwargs):
@@ -107,18 +108,18 @@ class ScanWindow(tk.Toplevel):
         )
         sideinfo_frames.append(frm_colorbar_settings)
         frm_minmax = tk.Frame(master=frm_colorbar_settings, relief=tk.RAISED, borderwidth=0)
-        ent_min = tk.Entry(master=frm_minmax, width=5)
-        ent_max = tk.Entry(master=frm_minmax, width=5)
+        ent_min = tk.Entry(master=frm_minmax, width=15)
+        ent_max = tk.Entry(master=frm_minmax, width=15)
         ent_min.insert(0, "0")
         ent_max.insert(0, "5000")
-        ent_min.bind('<Return>', lambda e: self.changeColorbar(autoscale=False))
-        ent_max.bind('<Return>', lambda e: self.changeColorbar(autoscale=False))
+        ent_min.bind('<Return>', lambda e: self.changePlotSettings(autoscale=False))
+        ent_max.bind('<Return>', lambda e: self.changePlotSettings(autoscale=False))
         self.widgets["user_min"] = ent_min
         self.widgets["user_max"] = ent_max
         ent_min.pack(padx=1, pady=1, side=tk.LEFT)
         ent_max.pack(padx=1, pady=1, side=tk.LEFT)
         lbl_colorbar_settings = tk.Label(master=frm_colorbar_settings, text="colorbar min/max:", padx=1, pady=1)
-        btn_autoscale = tk.Button(master=frm_colorbar_settings, text="Autoscale", command=lambda: self.changeColorbar(autoscale=True))
+        btn_autoscale = tk.Button(master=frm_colorbar_settings, text="Autoscale", command=lambda: self.changePlotSettings(autoscale=True))
         self.widgets["colorbar_palette"] = StringVar()
         cbox_colors = ttk.Combobox(master=frm_colorbar_settings,
                                    textvariable=self.widgets["colorbar_palette"],
@@ -126,11 +127,13 @@ class ScanWindow(tk.Toplevel):
                                    state="readonly",
                                    width=10)
         cbox_colors.current(0) # Set default dropdown value to the first value of ^ list.
-        cbox_colors.bind("<<ComboboxSelected>>", lambda e: self.changeColorbar(self.autoscale))
+        cbox_colors.bind("<<ComboboxSelected>>", lambda e: self.changePlotSettings())
+        btn_replot = tk.Button(master=frm_colorbar_settings, text="Re-plot", command=self.onRePlot)
         lbl_colorbar_settings.pack(padx=1, pady=1)
         frm_minmax.pack(padx=1, pady=1)
         btn_autoscale.pack(padx=1, pady=1)
-        cbox_colors.pack(padx=1, pady=1, side=tk.BOTTOM)
+        cbox_colors.pack(padx=1, pady=1)
+        btn_replot.pack(padx=1, pady=1, side=tk.BOTTOM)
 
         # Counts indicator frame.
         frm_counts = tk.Frame(
@@ -157,19 +160,26 @@ class ScanWindow(tk.Toplevel):
             borderwidth=0
         )
         sideinfo_frames.append(frm_cursor)
-        btn_cursor_move = tk.Button(master=frm_cursor, text="Move to Cursor", command=self.moveToCursor)
+        lbl_cursor_controls = tk.Label(master=frm_cursor, text="cursor controls:")
+        frm_cursor_custom = tk.Frame(master=frm_cursor, relief=tk.RAISED, borderwidth=0)
+        ent_cursor_x = tk.Entry(master=frm_cursor_custom, fg="blue", width=10)
+        ent_cursor_x.insert(0, "0")
+        ent_cursor_x.bind('<Return>', lambda e: self.onEnterCrosshairCoords)
+        self.widgets["cursor_custom_x"] = ent_cursor_x
+        ent_cursor_y = tk.Entry(master=frm_cursor_custom, fg="blue", width=10)
+        ent_cursor_y.insert(0, "0")
+        ent_cursor_y.bind('<Return>', lambda e: self.onEnterCrosshairCoords)
+        self.widgets["cursor_custom_y"] = ent_cursor_y
+        ent_cursor_x.pack(padx=1, pady=1, side=tk.LEFT)
+        ent_cursor_y.pack(padx=1, pady=1, side=tk.LEFT)
+        btn_cursor_move = tk.Button(master=frm_cursor, text="Move to Cursor", command=self.moveToCrosshair)
         btn_cursor_center = tk.Button(master=frm_cursor, text="Center", command=self.moveToCenter)
-        lbl_cursor_coordinates = tk.Label(
-            master=frm_cursor,
-            text="",
-            fg="red"
-        )
         self.widgets["cursor_move_button"] = btn_cursor_move
         self.widgets["cursor_center_button"] = btn_cursor_center
-        self.widgets["cursor_coordinates"] = lbl_cursor_coordinates
+        lbl_cursor_controls.pack(padx=1, pady=1)
+        frm_cursor_custom.pack(padx=1, pady=1)
         btn_cursor_move.pack(padx=1, pady=1)
-        btn_cursor_center.pack(padx=1, pady=1)
-        lbl_cursor_coordinates.pack(padx=1, pady=1, side=tk.BOTTOM)
+        btn_cursor_center.pack(padx=1, pady=1, side=tk.BOTTOM)
 
         # Peak finding frame.
         frm_peakfind = tk.Frame(
@@ -181,14 +191,14 @@ class ScanWindow(tk.Toplevel):
         lbl_peakfind = tk.Label(master=frm_peakfind, text="peak finding:", padx=1, pady=1)
         frm_peaksep = tk.Frame(master=frm_peakfind, relief=tk.RAISED, borderwidth=0)
         lbl_peaksep = tk.Label(master=frm_peaksep, text="min. separation:", padx=1, pady=1)
-        ent_peaksep = tk.Entry(master=frm_peaksep, width=2)
+        ent_peaksep = tk.Entry(master=frm_peaksep, width=5)
         ent_peaksep.insert(0, "3")
         self.widgets["peak_min_sep"] = ent_peaksep
         lbl_peaksep.pack(padx=1, pady=1, side=tk.LEFT)
         ent_peaksep.pack(padx=1, pady=1, side=tk.LEFT)
         frm_thresh = tk.Frame(master=frm_peakfind, relief=tk.RAISED, borderwidth=0)
         lbl_thresh = tk.Label(master=frm_thresh, text="intensity threshold:", padx=1, pady=1)
-        ent_thresh = tk.Entry(master=frm_thresh, width=2)
+        ent_thresh = tk.Entry(master=frm_thresh, width=10)
         ent_thresh.insert(0, "0.7")
         self.widgets["peak_threshold"] = ent_thresh
         lbl_thresh.pack(padx=1, pady=1, side=tk.LEFT)
@@ -204,7 +214,7 @@ class ScanWindow(tk.Toplevel):
         lbl_gopeak = tk.Label(master=frm_gopeak, text="go to peak #:", padx=1, pady=1)
         btn_gopeak = tk.Button(master=frm_gopeak, text="Next", command=self.goToNextPeak)
         self.widgets["next_peak"] = btn_gopeak
-        ent_gopeak = tk.Entry(master=frm_gopeak, width=2)
+        ent_gopeak = tk.Entry(master=frm_gopeak, width=5)
         ent_gopeak.insert(0, "0")
         ent_gopeak.bind('<Return>', lambda e: self.goToIndexPeak(int(self.widgets["peak_index"].get())))
         self.widgets["peak_index"] = ent_gopeak
@@ -234,7 +244,7 @@ class ScanWindow(tk.Toplevel):
         ent_savename.pack(padx=1, pady=1, side=tk.LEFT)
         frm_foldername = tk.Frame(master=frm_all_save_info, relief=tk.RAISED, borderwidth=0)
         lbl_foldername_indicator = tk.Label(master=frm_foldername, text="folder:", padx=1, pady=1)       
-        lbl_foldername = tk.Label(master=frm_foldername, text=str(os.getcwd()), fg="blue", padx=1, pady=1)       
+        lbl_foldername = tk.Label(master=frm_foldername, text=str(os.getcwd()), fg="blue", wraplength=250, padx=1, pady=1)       
         lbl_foldername_indicator.pack(padx=1, pady=1, side=tk.LEFT)
         lbl_foldername.pack(padx=1, pady=1, side=tk.LEFT)
         self.widgets["folder"] = lbl_foldername
@@ -306,7 +316,7 @@ class ScanWindow(tk.Toplevel):
 
         self.currently_scanning = True
         self.datastream = []
-        int_time = float(self.controlmenu.widgets["int_time"].get()) / 1000
+        fast_scan = self.controlmenu.widgets["fast_scan_int"] # 1 or 0
         self.scanning_mirror.start()
 
         # Scan start.
@@ -329,22 +339,27 @@ class ScanWindow(tk.Toplevel):
                 
                 # Take measurement & record data.
                 self.scanning_mirror.moveTo(x, y)
-                measurement = self.photon_counter.readCounts(integration_time=int_time)
+                measurement = self.takeMeasurement()
 
                 self.scan_data[x_i][y_i] = measurement
                 self.datastream.append(measurement)
-                self.widgets["counts"].config(text=str(measurement))
 
-                self.update()
-                self.update_idletasks()
+                if self.autoscale:
+                    self.colorbar_minmax[0] = min(self.datastream)
+                    self.colorbar_minmax[1] = max(self.datastream)
 
-            if self.autoscale: # Replot after every column.
-                self.colorbar_minmax[0] = min(self.datastream)
-                self.colorbar_minmax[1] = max(self.datastream)
+                # Update UI (i.e. check for mouse activity) only every 3 pixels, to save computation.
+                if y_i % 3 == 0:
+                    self.update()
+                    self.update_idletasks()
             
-            self.plotWithColorbar()
+            if fast_scan == 0: # Not a fast scan. Plot after every column.
+                self.plotWithColorbar() 
         
         # Scan end.
+        if fast_scan == 1: # Fast scan. Only plot at the end.
+            self.plotWithColorbar()
+            
         self.currently_scanning = False
         print("Scan done.")
         self.controlmenu.interruptScanEvent()
@@ -364,6 +379,7 @@ class ScanWindow(tk.Toplevel):
         self.ax = self.fig.add_subplot(111)
         plot = self.ax.imshow(self.scan_data.T,
                             extent=self.xy_range,
+                            aspect=self.aspectratio,
                             origin='lower',
                             cmap=self.widgets["colorbar_palette"].get(),
                             vmin=self.colorbar_minmax[0],
@@ -375,12 +391,27 @@ class ScanWindow(tk.Toplevel):
         # Update the UI... tkinter made me do it :/
         self.update()
         self.update_idletasks()
+
+    def onRePlot(self):
+        ##
+        ## [Event Handler] REMAKES THE PLOT, RESETTING ANNOTATIONS ETC. IF SCAN IS COMPLETE.
+        ##
+        self.plotWithColorbar()
+        if not self.currently_scanning: # Scan is done; refresh annotations & relevant buttons.
+            self.crosshair = False
+            # Re-run peaks and re-upload custom coords to do anything with them on this fresh plot.
+            self.widgets["save_peaks"].configure(state="disabled")
+            self.controlmenu.widgets["custom_loop_button"].configure(state="disabled")
     
-    def changeColorbar(self, autoscale):
+    def changePlotSettings(self, autoscale=None, aspectratio=None):
         ##
         ## [Event Handler] MAKES CHANGES TO COLORBAR SETTINGS (MIN/MAX) & REFRESHES PLOT IF NECESSARY.
         ##
-        self.autoscale = autoscale
+        if autoscale != None:
+            self.autoscale = autoscale
+        if aspectratio != None:
+            self.aspectratio = aspectratio
+
         if self.autoscale:
             # Autoscale.
             self.colorbar_minmax[0] = min(self.datastream)
@@ -401,6 +432,21 @@ class ScanWindow(tk.Toplevel):
             if self.crosshair:
                 self.placeCrosshair(self.cursor_coordinates[0], self.cursor_coordinates[1])
 
+    def connectPlotClicker(self):
+        ##
+        ## CONNECTS THE MOUSE CLICK EVENT HANDLING CONNECTION TO THE MATPLOTLIB PLOT.
+        ## CALLBACK ID (cid) STORED IN WIDGETS FOR KEEPING TRACK OF THE HANDLER.
+        ##
+        self.widgets["plot_clicker"] = self.canvas.mpl_connect('button_press_event', lambda e: self.onClickingPlot(e))
+
+    def disconnectPlotClicker(self):
+        ##
+        ## DISCONNECTS THE MOUSE CLICK EVENT HANDLING CONNECTION TO THE MATPLOTLIB PLOT.
+        ## CALLBACK ID (cid) STORED IN WIDGETS FOR KEEPING TRACK OF THE HANDLER.
+        ##
+        cid = self.widgets["plot_clicker"]
+        self.canvas.mpl_disconnect(cid)
+        
     def onClickingPlot(self, e):
         ##
         ## [Event Handler] Refreshes the crosshair placement at the location of the mouse click.
@@ -422,21 +468,6 @@ class ScanWindow(tk.Toplevel):
             if str(self.widgets["cursor_move_button"]["state"]) == "disabled":
                 self.widgets["cursor_move_button"].configure(state="normal")
 
-    def connectPlotClicker(self):
-        ##
-        ## CONNECTS THE MOUSE CLICK EVENT HANDLING CONNECTION TO THE MATPLOTLIB PLOT.
-        ## CALLBACK ID (cid) STORED IN WIDGETS FOR KEEPING TRACK OF THE HANDLER.
-        ##
-        self.widgets["plot_clicker"] = self.canvas.mpl_connect('button_press_event', lambda e: self.onClickingPlot(e))
-
-    def disconnectPlotClicker(self):
-        ##
-        ## DISCONNECTS THE MOUSE CLICK EVENT HANDLING CONNECTION TO THE MATPLOTLIB PLOT.
-        ## CALLBACK ID (cid) STORED IN WIDGETS FOR KEEPING TRACK OF THE HANDLER.
-        ##
-        cid = self.widgets["plot_clicker"]
-        self.canvas.mpl_disconnect(cid)
-
     def placeCrosshair(self, x_coord, y_coord):
         ##
         ## PLACES A CROSSHAIR (MARKER + PREPENDICULAR LINES) ON THE PLOT AT (x_coord, y_coord).
@@ -448,25 +479,47 @@ class ScanWindow(tk.Toplevel):
         self.ax.plot([x_coord], [y_coord], "s", markersize=5.5, markerfacecolor="None", markeredgewidth=1, markeredgecolor="cyan")
         self.canvas.draw()
         self.cursor_coordinates = [x_coord, y_coord]
-        self.widgets["cursor_coordinates"].config(text=f"({x_coord}, {y_coord})")
+        # Update cursor coordinates indicator on the UI.
+        self.widgets["cursor_custom_x"].delete(0, tk.END)
+        self.widgets["cursor_custom_y"].delete(0, tk.END)
+        self.widgets["cursor_custom_x"].insert(0, str(x_coord))
+        self.widgets["cursor_custom_x"].insert(0, str(y_coord))
         self.crosshair = True
 
+    def onEnterCrosshairCoords(self):
+        ##
+        ## [Event Handler] PLACES THE CROSSHAIR AT THE x_coord, y_coord DEFINED IN THE UI FIELDS.
+        ##
+        x_coord = float(self.widgets["cursor_custom_x"].get())
+        y_coord = float(self.widgets["cursor_custom_y"].get())
+        self.placeCrosshair(x_coord, y_coord)
+
+    def takeMeasurement(self):
+        ##
+        ## TAKES A MEASUREMENT FROM THE PHOTON COUNTER THEN DISPLAYS THE COUNTS.
+        ##
+        int_time = float(self.controlmenu.widgets["int_time"].get()) / 1000
+        measurement = self.photon_counter.readCounts(integration_time=int_time)
+        self.widgets["counts"].config(text=str(measurement))
+    
     def moveScanningMirror(self, x_coord, y_coord):
         self.scanning_mirror.moveTo(x_coord, y_coord)
     
-    def moveToCursor(self):
+    def moveToCrosshair(self):
         ##
         ## [Event Handler] MOVE THE SCANNING MIRROR TO WHERE THE CURSOR IS.
         ##
-        x = self.cursor_coordinates[0]
-        y = self.cursor_coordinates[1]
-        self.scanning_mirror.moveTo(x, y)
+        x_coord = self.cursor_coordinates[0]
+        y_coord = self.cursor_coordinates[1]
+        self.scanning_mirror.moveTo(x_coord, y_coord)
+        self.takeMeasurement()
 
     def moveToCenter(self):
         ##
         ## [Event Handler] MOVE THE SCANNING MIRROR TO (0, 0).
         ##
         self.scanning_mirror.moveTo(0, 0)
+        self.takeMeasurement()
 
     def removeCrosshair(self):
         ##
@@ -640,7 +693,8 @@ class ScanWindow(tk.Toplevel):
         lines = []
         if self.crosshair:
             self.removeCrosshair()
-        if annotations == False: # Remove all annotations.
+        if annotations == False:
+            # Remove all annotations.
             lines = self.clearAnnotations()
 
         self.fig.savefig(path, dpi='figure')
