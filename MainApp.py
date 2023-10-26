@@ -80,11 +80,13 @@ class MainApp(tk.Tk):
         )
         widget_frames.append(frm_int)
         lbl_int = tk.Label(master=frm_int, text="integration time:", padx=1, pady=1)
-        ent_int = tk.Entry(master=frm_int, width=3)
+        ent_int = tk.Entry(master=frm_int, width=5)
         ent_int.insert(0, "5")
         self.widgets["int_time"] = ent_int
+        lbl_ms = tk.Label(master=frm_int, text="ms", padx=1, pady=1)
         lbl_int.pack(padx=1, pady=5, side=tk.LEFT)
         ent_int.pack(padx=1, pady=5, side=tk.LEFT)
+        lbl_ms.pack(padx=1, pady=5, side=tk.LEFT)
 
         # Start/Interrupt scan buttons frame.
         frm_buttons = tk.Frame(
@@ -99,6 +101,18 @@ class MainApp(tk.Tk):
         self.widgets["interrupt_button"] = btn_interrupt
         btn_start.pack(padx=5, pady=5, side=tk.LEFT)
         btn_interrupt.pack(padx=5, pady=5, side=tk.LEFT)
+
+        # Fast scan checkbox frame.
+        frm_fastscan = tk.Frame(
+            master=self,
+            relief=tk.RAISED,
+            borderwidth=0
+        )
+        widget_frames.append(frm_fastscan)
+        self.widgets["fast_scan_int"] = tk.IntVar() # It will be 0 or 1, for if the checkbox is checked or not.
+        chkbox_fastscan = tk.Checkbutton(master=frm_fastscan, text='Fast Scan:', variable=self.widgets["fast_scan_int"])
+        self.widgets["fastscan_checkbox"] = chkbox_fastscan
+        chkbox_fastscan.pack(padx=5, pady=5, side=tk.LEFT)
 
         # Custom coordinates frame.
         frm_customcoords = tk.Frame(
@@ -130,6 +144,7 @@ class MainApp(tk.Tk):
         ## Disables all widgets in the control menu to user input.
         ##
         self.widgets["start_button"].config(state='disabled')
+        self.widgets["fastscan_checkbox"].config(state='disabled')
         self.widgets["interrupt_button"].config(state='disabled')
         self.widgets["custom_json_button"].config(state='disabled')
         self.widgets["custom_loop_button"].config(state='disabled')
@@ -146,6 +161,7 @@ class MainApp(tk.Tk):
         ## Enables all widgets in the control menu to user input.
         ##
         self.widgets["start_button"].config(state='normal')
+        self.widgets["fastscan_checkbox"].config(state='normal')
         self.widgets["interrupt_button"].config(state='normal')
         self.widgets["custom_json_button"].config(state='normal')
         self.widgets["custom_loop_button"].config(state='normal')

@@ -227,7 +227,7 @@ class ScanWindow(tk.Toplevel):
         sideinfo_frames.append(frm_all_save_info)
         frm_savename = tk.Frame(master=frm_all_save_info, relief=tk.RAISED, borderwidth=0)
         lbl_savename = tk.Label(master=frm_savename, text="savename:", padx=1, pady=1)
-        ent_savename = tk.Entry(master=frm_savename, fg="blue", width=15)
+        ent_savename = tk.Entry(master=frm_savename, fg="blue", width=30)
         ent_savename.insert(0, "untitled")
         self.widgets["savename"] = ent_savename
         lbl_savename.pack(padx=1, pady=1, side=tk.LEFT)
