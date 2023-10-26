@@ -16,5 +16,10 @@ with nidaqmx.Task() as photon_counter_task, nidaqmx.Task() as scanning_mirror_ta
                             channels["Scanning Mirror"]["y_channel"])
     }
 
+    scanning_mirror = DAQ["Scanning Mirror"]
+    scanning_mirror.start()
+
     app = MainApp(DAQ)
     app.mainloop()
+    
+    scanning_mirror.stop()

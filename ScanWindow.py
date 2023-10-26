@@ -79,7 +79,6 @@ class ScanWindow(tk.Toplevel):
         # X and Y voltage axes.
         self.x_axis = np.linspace(x_start, x_end, int((x_end - x_start) / x_step)+1)
         self.y_axis = np.linspace(y_start, y_end, int((y_end - y_start) / y_step)+1)
-        print(self.x_axis, self.y_axis)
 
         # Initialize data array.
         self.scan_data = np.zeros((len(self.x_axis), len(self.y_axis))) #  Data for plotting and saving.
@@ -108,8 +107,8 @@ class ScanWindow(tk.Toplevel):
         )
         sideinfo_frames.append(frm_colorbar_settings)
         frm_minmax = tk.Frame(master=frm_colorbar_settings, relief=tk.RAISED, borderwidth=0)
-        ent_min = tk.Entry(master=frm_minmax, width=15)
-        ent_max = tk.Entry(master=frm_minmax, width=15)
+        ent_min = tk.Entry(master=frm_minmax, width=8)
+        ent_max = tk.Entry(master=frm_minmax, width=8)
         ent_min.insert(0, "0")
         ent_max.insert(0, "5000")
         ent_min.bind('<Return>', lambda e: self.changePlotSettings(autoscale=False))
@@ -162,11 +161,11 @@ class ScanWindow(tk.Toplevel):
         sideinfo_frames.append(frm_cursor)
         lbl_cursor_controls = tk.Label(master=frm_cursor, text="cursor controls:")
         frm_cursor_custom = tk.Frame(master=frm_cursor, relief=tk.RAISED, borderwidth=0)
-        ent_cursor_x = tk.Entry(master=frm_cursor_custom, fg="blue", width=10)
+        ent_cursor_x = tk.Entry(master=frm_cursor_custom, fg="blue", width=8)
         ent_cursor_x.insert(0, "0")
         ent_cursor_x.bind('<Return>', lambda e: self.onEnterCrosshairCoords)
         self.widgets["cursor_custom_x"] = ent_cursor_x
-        ent_cursor_y = tk.Entry(master=frm_cursor_custom, fg="blue", width=10)
+        ent_cursor_y = tk.Entry(master=frm_cursor_custom, fg="blue", width=8)
         ent_cursor_y.insert(0, "0")
         ent_cursor_y.bind('<Return>', lambda e: self.onEnterCrosshairCoords)
         self.widgets["cursor_custom_y"] = ent_cursor_y
@@ -198,7 +197,7 @@ class ScanWindow(tk.Toplevel):
         ent_peaksep.pack(padx=1, pady=1, side=tk.LEFT)
         frm_thresh = tk.Frame(master=frm_peakfind, relief=tk.RAISED, borderwidth=0)
         lbl_thresh = tk.Label(master=frm_thresh, text="intensity threshold:", padx=1, pady=1)
-        ent_thresh = tk.Entry(master=frm_thresh, width=10)
+        ent_thresh = tk.Entry(master=frm_thresh, width=7)
         ent_thresh.insert(0, "0.7")
         self.widgets["peak_threshold"] = ent_thresh
         lbl_thresh.pack(padx=1, pady=1, side=tk.LEFT)
@@ -316,8 +315,8 @@ class ScanWindow(tk.Toplevel):
 
         self.currently_scanning = True
         self.datastream = []
-        fast_scan = self.controlmenu.widgets["fast_scan_int"] # 1 or 0
-        self.scanning_mirror.start()
+        fast_scan = self.controlmenu.widgets["fast_scan_int"].get() # 1 or 0
+        self.plotWithColorbar()
 
         # Scan start.
         for x_i in range(len(self.x_axis)):
@@ -344,12 +343,12 @@ class ScanWindow(tk.Toplevel):
                 self.scan_data[x_i][y_i] = measurement
                 self.datastream.append(measurement)
 
-                if self.autoscale:
-                    self.colorbar_minmax[0] = min(self.datastream)
-                    self.colorbar_minmax[1] = max(self.datastream)
-
                 # Update UI (i.e. check for mouse activity) only every 3 pixels, to save computation.
                 if y_i % 3 == 0:
+                    if self.autoscale:
+                        self.colorbar_minmax[0] = min(self.datastream)
+                        self.colorbar_minmax[1] = max(self.datastream)
+
                     self.update()
                     self.update_idletasks()
             
@@ -501,6 +500,7 @@ class ScanWindow(tk.Toplevel):
         int_time = float(self.controlmenu.widgets["int_time"].get()) / 1000
         measurement = self.photon_counter.readCounts(integration_time=int_time)
         self.widgets["counts"].config(text=str(measurement))
+        return measurement
     
     def moveScanningMirror(self, x_coord, y_coord):
         self.scanning_mirror.moveTo(x_coord, y_coord)
@@ -731,7 +731,6 @@ class ScanWindow(tk.Toplevel):
         if self.currently_scanning:
             self.controlmenu.interruptScanEvent()
         self.controlmenu.widgets["custom_json_button"].configure(state="disabled")
-        self.scanning_mirror.stop()
         self.destroy()
         self.update()
     
