@@ -403,13 +403,13 @@ class ScanWindow(tk.Toplevel):
             self.widgets["save_peaks"].configure(state="disabled")
             self.controlmenu.widgets["custom_loop_button"].configure(state="disabled")
     
-    def changePlotSettings(self, autoscale=None, aspectratio=None):
+    def changePlotSettings(self, autoscale=None, aspectratio=False):
         ##
         ## [Event Handler] MAKES CHANGES TO COLORBAR SETTINGS (MIN/MAX) & REFRESHES PLOT IF NECESSARY.
         ##
         if autoscale != None:
             self.autoscale = autoscale
-        if aspectratio != None:
+        if aspectratio != False: # Used False instead of None because setting the aspect ratio to None is a real thing.
             self.aspectratio = aspectratio
 
         if self.autoscale:
