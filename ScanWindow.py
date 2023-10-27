@@ -90,7 +90,8 @@ class ScanWindow(tk.Toplevel):
             "y_step": y_step
         }
         self.generateSideInfo()
-        self.generatePlotHolder()
+        aspectratio = (self.xy_range[3]-self.xy_range[2]) / (self.xy_range[1]-self.xy_range[0])
+        self.generatePlotHolder(aspectratio)
 
     def generateSideInfo(self):
         ##
@@ -276,7 +277,7 @@ class ScanWindow(tk.Toplevel):
         for i in range(len(sideinfo_frames)):
             sideinfo_frames[i].grid(column=0, row=i)
     
-    def generatePlotHolder(self):
+    def generatePlotHolder(self, aspectratio):
         ##
         ## ADDS A CANVAS (FOR VISUALIZING DATA) TO A 1X1 GRID ON THE SCAN FRAME.
         ##
@@ -292,7 +293,6 @@ class ScanWindow(tk.Toplevel):
         frm_plot.grid(column=0, row=0)
 
         # Initialize matplotlib figure.
-        aspectratio = (self.xy_range[3]-self.xy_range[2]) / (self.xy_range[1]-self.xy_range[0])
         dimx = 9
         dimy = 7.5
         if aspectratio >= 1: # Portrait.
@@ -427,6 +427,7 @@ class ScanWindow(tk.Toplevel):
             self.autoscale = autoscale
         if aspectratio != False: # Used False instead of None because setting the aspect ratio to None is a real thing.
             self.aspectratio = aspectratio
+            self.generatePlotHolder((self.xy_range[3]-self.xy_range[2]) / (self.xy_range[1]-self.xy_range[0]) * self.aspectratio)
 
         if self.autoscale:
             # Autoscale.
