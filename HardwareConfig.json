@@ -1,10 +1,10 @@
 {
     "Photon Counter": {
-        "counter_channel": "Dev4/ctr0",
+        "counter_channel": "Dev1/ctr0",
         "counter_terminal": "PFI0"
     },
     "Scanning Mirror": {
-        "x_channel": "Dev4/ao0",
-        "y_channel": "Dev4/ao1"
+        "x_channel": "Dev1/ao0",
+        "y_channel": "Dev1/ao1"
     }
 }

@@ -1,0 +1,9 @@
+# Ignore everything.
+*
+
+# But not these files.
+!.gitignore
+!MainApp.py
+!ScanWindow.py
+!PopoutPlot.py
+!HardwareConfig.json

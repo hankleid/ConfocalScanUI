@@ -163,11 +163,11 @@ class ScanWindow(tk.Toplevel):
         frm_cursor_custom = tk.Frame(master=frm_cursor, relief=tk.RAISED, borderwidth=0)
         ent_cursor_x = tk.Entry(master=frm_cursor_custom, fg="blue", width=8)
         ent_cursor_x.insert(0, "0")
-        ent_cursor_x.bind('<Return>', lambda e: self.onEnterCrosshairCoords)
+        ent_cursor_x.bind('<Return>', lambda e: self.onEnterCrosshairCoords())
         self.widgets["cursor_custom_x"] = ent_cursor_x
         ent_cursor_y = tk.Entry(master=frm_cursor_custom, fg="blue", width=8)
         ent_cursor_y.insert(0, "0")
-        ent_cursor_y.bind('<Return>', lambda e: self.onEnterCrosshairCoords)
+        ent_cursor_y.bind('<Return>', lambda e: self.onEnterCrosshairCoords())
         self.widgets["cursor_custom_y"] = ent_cursor_y
         ent_cursor_x.pack(padx=1, pady=1, side=tk.LEFT)
         ent_cursor_y.pack(padx=1, pady=1, side=tk.LEFT)
@@ -310,6 +310,8 @@ class ScanWindow(tk.Toplevel):
         # Disable certain buttons while scan runs.
         self.widgets["cursor_move_button"].configure(state="disabled")
         self.widgets["cursor_center_button"].configure(state="disabled")
+        self.widgets["cursor_custom_x"].configure(state="disabled")
+        self.widgets["cursor_custom_y"].configure(state="disabled")
         self.widgets["save_button"].configure(state="disabled")
         self.disablePeakFindingWidgets()
 
@@ -337,7 +339,7 @@ class ScanWindow(tk.Toplevel):
                 y = self.y_axis[y_i]
                 
                 # Take measurement & record data.
-                self.scanning_mirror.moveTo(x, y)
+                self.moveScanningMirror(x, y)
                 measurement = self.takeMeasurement()
 
                 self.scan_data[x_i][y_i] = measurement
@@ -365,6 +367,8 @@ class ScanWindow(tk.Toplevel):
         self.save_data["scan_data"] = self.scan_data.tolist()
         # Enable buttons.
         self.widgets["cursor_center_button"].configure(state="normal")
+        self.widgets["cursor_custom_x"].configure(state="normal")
+        self.widgets["cursor_custom_y"].configure(state="normal")
         self.widgets["save_button"].configure(state="normal")
         self.enablePeakFindingWidgets()
         # Enable clicking the plot for placing cursor.
@@ -477,21 +481,25 @@ class ScanWindow(tk.Toplevel):
         self.ax.axvline(x = x_coord, color = 'r', linestyle = '-', linewidth=1)
         self.ax.plot([x_coord], [y_coord], "s", markersize=5.5, markerfacecolor="None", markeredgewidth=1, markeredgecolor="cyan")
         self.canvas.draw()
-        self.cursor_coordinates = [x_coord, y_coord]
         # Update cursor coordinates indicator on the UI.
         self.widgets["cursor_custom_x"].delete(0, tk.END)
         self.widgets["cursor_custom_y"].delete(0, tk.END)
         self.widgets["cursor_custom_x"].insert(0, str(x_coord))
-        self.widgets["cursor_custom_x"].insert(0, str(y_coord))
+        self.widgets["cursor_custom_y"].insert(0, str(y_coord))
+        self.cursor_coordinates = [x_coord, y_coord]
         self.crosshair = True
 
     def onEnterCrosshairCoords(self):
         ##
         ## [Event Handler] PLACES THE CROSSHAIR AT THE x_coord, y_coord DEFINED IN THE UI FIELDS.
         ##
+        print("entered custom cursor coords.")
         x_coord = float(self.widgets["cursor_custom_x"].get())
         y_coord = float(self.widgets["cursor_custom_y"].get())
+        print(x_coord, y_coord)
+        self.removeCrosshair()
         self.placeCrosshair(x_coord, y_coord)
+        self.resetAxes() # Makes things neat again if user enters coordinate outside of data range.
 
     def takeMeasurement(self):
         ##
@@ -511,14 +519,18 @@ class ScanWindow(tk.Toplevel):
         ##
         x_coord = self.cursor_coordinates[0]
         y_coord = self.cursor_coordinates[1]
-        self.scanning_mirror.moveTo(x_coord, y_coord)
+        self.moveScanningMirror(x_coord, y_coord)
         self.takeMeasurement()
 
     def moveToCenter(self):
         ##
         ## [Event Handler] MOVE THE SCANNING MIRROR TO (0, 0).
         ##
-        self.scanning_mirror.moveTo(0, 0)
+        self.widgets["cursor_custom_x"].delete(0, tk.END)
+        self.widgets["cursor_custom_y"].delete(0, tk.END)
+        self.widgets["cursor_custom_x"].insert(0, "0")
+        self.widgets["cursor_custom_y"].insert(0, "0")
+        self.moveScanningMirror(0, 0)
         self.takeMeasurement()
 
     def removeCrosshair(self):
@@ -588,6 +600,8 @@ class ScanWindow(tk.Toplevel):
 
         peak_data = {'peaks_x_coords': x_coords, 'peaks_y_coords': y_coords}
         self.save_data["peak_finding"] = peak_data
+        self.widgets["peak_index"].configure(state="normal")
+        self.widgets["next_peak"].configure(state="normal")
         self.widgets["save_peaks"].configure(state="normal")
     
     def resetAxes(self):
@@ -597,6 +611,10 @@ class ScanWindow(tk.Toplevel):
         ##
         self.ax.set_xlim((self.xy_range[0], self.xy_range[1]))
         self.ax.set_ylim((self.xy_range[2], self.xy_range[3]))
+        self.canvas.draw()
+        # Update the UI... tkinter made me do it :/
+        self.update()
+        self.update_idletasks()
 
     def disablePeakFindingWidgets(self):
         ##
@@ -628,10 +646,16 @@ class ScanWindow(tk.Toplevel):
         peaks_x_coords = self.save_data["peak_finding"]["peaks_x_coords"]
         peaks_y_coords = self.save_data["peak_finding"]["peaks_y_coords"]
         real_index = index % len(peaks_x_coords) # Wrap around list if user enters an index out of bounds.
+        x_coord = round(peaks_x_coords[real_index], 3)
+        y_coord = round(peaks_y_coords[real_index], 3)
         if index != real_index:
             self.widgets["peak_index"].delete(0, tk.END)
             self.widgets["peak_index"].insert(0, str(real_index))
-        self.moveScanningMirror(peaks_x_coords[real_index], peaks_y_coords[real_index])
+        self.widgets["cursor_custom_x"].delete(0, tk.END)
+        self.widgets["cursor_custom_y"].delete(0, tk.END)
+        self.widgets["cursor_custom_x"].insert(0, str(x_coord))
+        self.widgets["cursor_custom_y"].insert(0, str(y_coord))
+        self.moveScanningMirror(x_coord, y_coord)
     
     def goToNextPeak(self):
         ##
