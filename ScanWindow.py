@@ -307,6 +307,9 @@ class ScanWindow(tk.Toplevel):
         canvas.draw()
         canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         self.widgets["plot_clicker"] = None # Callback ID for the mouse clicking matplotlib event.
+        if self.currently_scanning == False:
+            self.connectPlotClicker()
+        self.plotWithColorbar()
 
     def generateScanID(self):
         ##
@@ -331,7 +334,6 @@ class ScanWindow(tk.Toplevel):
         self.currently_scanning = True
         self.datastream = []
         fast_scan = self.controlmenu.widgets["fast_scan_int"].get() # 1 or 0
-        self.plotWithColorbar()
 
         # Scan start.
         for x_i in range(len(self.x_axis)):
@@ -427,7 +429,9 @@ class ScanWindow(tk.Toplevel):
             self.autoscale = autoscale
         if aspectratio != False: # Used False instead of None because setting the aspect ratio to None is a real thing.
             self.aspectratio = aspectratio
-            self.generatePlotHolder((self.xy_range[3]-self.xy_range[2]) / (self.xy_range[1]-self.xy_range[0]) * self.aspectratio)
+            self.canvas.get_tk_widget().delete("all")
+            if self.currently_scanning:
+                self.generatePlotHolder((self.xy_range[3]-self.xy_range[2]) / (self.xy_range[1]-self.xy_range[0]) * self.aspectratio)
 
         if self.autoscale:
             # Autoscale.
@@ -444,6 +448,8 @@ class ScanWindow(tk.Toplevel):
             if self.crosshair:
                 self.removeCrosshair()
             lines = self.clearAnnotations()
+            if aspectratio != False: # Need to remake figure if user has changed the aspect ratio.
+                self.generatePlotHolder((self.xy_range[3]-self.xy_range[2]) / (self.xy_range[1]-self.xy_range[0]) * self.aspectratio)
             self.plotWithColorbar()
             self.replotAnnotations(lines)
             if self.crosshair:
