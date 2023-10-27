@@ -38,7 +38,7 @@ class ScanWindow(tk.Toplevel):
         self.ID = self.generateScanID() # Timestamp (not currently used)
         self.title("Scan "+self.ID)
         self.controlmenu = app # Access control menu through this App object.
-        self.DAQ = DAQ
+        self.DAQ = DAQ # DAQ dcitionary that hosts the hardware.DAQ dcitionary that hosts the hardware.DAQ dcitionary that hosts the hardware.
         self.photon_counter = self.DAQ["Photon Counter"]
         self.scanning_mirror = self.DAQ["Scanning Mirror"]
 
@@ -99,14 +99,14 @@ class ScanWindow(tk.Toplevel):
         frm_side_info = self.widgets["side_info_frame"]
         sideinfo_frames = []
         
-        # Colobar settings frame.
-        frm_colorbar_settings = tk.Frame(
+        # Plot settings frame.
+        frm_plot_settings = tk.Frame(
             master=frm_side_info,
             relief=tk.RAISED,
             borderwidth=0
         )
-        sideinfo_frames.append(frm_colorbar_settings)
-        frm_minmax = tk.Frame(master=frm_colorbar_settings, relief=tk.RAISED, borderwidth=0)
+        sideinfo_frames.append(frm_plot_settings)
+        frm_minmax = tk.Frame(master=frm_plot_settings, relief=tk.RAISED, borderwidth=0)
         ent_min = tk.Entry(master=frm_minmax, width=8)
         ent_max = tk.Entry(master=frm_minmax, width=8)
         ent_min.insert(0, "0")
@@ -117,22 +117,35 @@ class ScanWindow(tk.Toplevel):
         self.widgets["user_max"] = ent_max
         ent_min.pack(padx=1, pady=1, side=tk.LEFT)
         ent_max.pack(padx=1, pady=1, side=tk.LEFT)
-        lbl_colorbar_settings = tk.Label(master=frm_colorbar_settings, text="colorbar min/max:", padx=1, pady=1)
-        btn_autoscale = tk.Button(master=frm_colorbar_settings, text="Autoscale", command=lambda: self.changePlotSettings(autoscale=True))
+        lbl_colorbar_settings = tk.Label(master=frm_plot_settings, text="colorbar min/max:", padx=1, pady=1)
+        btn_autoscale = tk.Button(master=frm_plot_settings, text="Autoscale", command=lambda: self.changePlotSettings(autoscale=True))
         self.widgets["colorbar_palette"] = StringVar()
-        cbox_colors = ttk.Combobox(master=frm_colorbar_settings,
+        cbox_colors = ttk.Combobox(master=frm_plot_settings,
                                    textvariable=self.widgets["colorbar_palette"],
                                    values=["gray", "viridis", "plasma", "inferno", "magma", "cividis"],
                                    state="readonly",
                                    width=10)
         cbox_colors.current(0) # Set default dropdown value to the first value of ^ list.
         cbox_colors.bind("<<ComboboxSelected>>", lambda e: self.changePlotSettings())
-        btn_replot = tk.Button(master=frm_colorbar_settings, text="Re-plot", command=self.onRePlot)
+        btn_replot = tk.Button(master=frm_plot_settings, text="Re-plot", command=self.onRePlot)
+        frm_aspect = tk.Frame(master=frm_plot_settings, relief=tk.RAISED, borderwidth=0)
+        lbl_aspect = tk.Label(master=frm_aspect, text="aspect ratio:", padx=1, pady=1)
+        ent_aspect = tk.Entry(master=frm_aspect, width=8)
+        ent_aspect.insert(0, str(self.xy_range[1])) # Set to max X value; this means the ratio is default.
+        ent_aspect.bind('<Return>', lambda e: self.changePlotSettings(aspectratio=float(ent_aspect.get())))
+        self.widgets["aspectratio_entry"] = ent_aspect # Not currently used in the rest of the code, but storing just in case.
+        btn_aspect = tk.Button(master=frm_aspect, text="Reset", command=lambda: self.changePlotSettings(aspectratio=None))
+        self.widgets["aspectratio_button"] = btn_aspect # Not currently used in the rest of the code, but storing just in case.
+        lbl_aspect.pack(padx=1, pady=1, side=tk.LEFT)
+        ent_aspect.pack(padx=1, pady=1, side=tk.LEFT)
+        btn_aspect.pack(padx=1, pady=1, side=tk.LEFT)
+
         lbl_colorbar_settings.pack(padx=1, pady=1)
         frm_minmax.pack(padx=1, pady=1)
         btn_autoscale.pack(padx=1, pady=1)
         cbox_colors.pack(padx=1, pady=1)
-        btn_replot.pack(padx=1, pady=1, side=tk.BOTTOM)
+        btn_replot.pack(padx=1, pady=1)
+        frm_aspect.pack(padx=1, pady=1, side=tk.BOTTOM)
 
         # Counts indicator frame.
         frm_counts = tk.Frame(
