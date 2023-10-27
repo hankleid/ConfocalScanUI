@@ -18,6 +18,4 @@ class ScanningMirror():
         self.analog_task.stop()
 
     def moveTo(self, x_voltage, y_voltage):
-        # self.analog_task.start()
         self.analog_task.write([x_voltage, y_voltage])
-        # self.analog_task.stop()
