@@ -132,7 +132,7 @@ class ScanWindow(tk.Toplevel):
         frm_aspect = tk.Frame(master=frm_plot_settings, relief=tk.RAISED, borderwidth=0)
         lbl_aspect = tk.Label(master=frm_aspect, text="aspect ratio:", padx=1, pady=1)
         ent_aspect = tk.Entry(master=frm_aspect, width=8)
-        ent_aspect.insert(0, str(self.xy_range[1])) # Set to max X value; this means the ratio is default.
+        ent_aspect.insert(0, "1.0") # Set to max X value; this means the ratio is default.
         ent_aspect.bind('<Return>', lambda e: self.changePlotSettings(aspectratio=float(ent_aspect.get())))
         self.widgets["aspectratio_entry"] = ent_aspect # Not currently used in the rest of the code, but storing just in case.
         btn_aspect = tk.Button(master=frm_aspect, text="Reset", command=lambda: self.changePlotSettings(aspectratio=None))
