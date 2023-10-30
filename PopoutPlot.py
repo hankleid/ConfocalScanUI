@@ -1,3 +1,16 @@
+##############################################################
+##############################################################
+###                                                        ###
+###                                                        ###
+###   Author: Hannah Kleidermacher                         ###
+###   To report bugs, questions, comments, please email:   ###
+###   kleid@stanford.edu                                   ###
+###                                                        ###
+###                                                        ###
+##############################################################
+##############################################################
+
+
 import tkinter as tk
 import numpy as np
 import matplotlib.pyplot as plt

@@ -1,3 +1,16 @@
+##############################################################
+##############################################################
+###                                                        ###
+###                                                        ###
+###   Author: Hannah Kleidermacher                         ###
+###   To report bugs, questions, comments, please email:   ###
+###   kleid@stanford.edu                                   ###
+###                                                        ###
+###                                                        ###
+##############################################################
+##############################################################
+
+
 import json
 import tkinter as tk
 from tkinter.filedialog import askopenfilename
