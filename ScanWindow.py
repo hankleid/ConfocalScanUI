@@ -571,19 +571,19 @@ class ScanWindow(tk.Toplevel):
         ## REMOVES THE CROSSHAIR FROM THE PLOT. IF NO CROSSHAIR, DOES NOTHING.
         ##
         if self.crosshair:
-            self.ax.lines.pop()
-            self.ax.lines.pop()
-            self.ax.lines.pop()
+            self.ax.lines[-1].remove()
+            self.ax.lines[-1].remove()
+            self.ax.lines[-1].remove()
 
     def clearAnnotations(self):
         ##
         ## REMOVES PLOTTED LINES (BELOW CURSOR) AND RETURNS THEM IN A LIST.
         ##
         lines = []
-        for _ in range(len(self.ax.lines)):
-            lines.append(self.ax.lines.pop())
+        for line in self.ax.lines:
+            lines.append(line.remove())
         self.canvas.draw()
-        return lines
+        return lines.reverse()
 
     def replotAnnotations(self, lines):
         ##
