@@ -1,8 +1,14 @@
-# Ignore everything.
+# Ignore all files.
 *
 
 # But not these files.
-!.gitignore
 !MainApp.py
 !ScanWindow.py
 !PopoutPlot.py
+!PhotonCounter.py
+!ScanningMirror.py
+!gitignore
+!README.md
+
+# Note that run.py and HardwareConfig.json are not included in the list of files above...
+# The user should feel free to edit these files and should not edit other files.
