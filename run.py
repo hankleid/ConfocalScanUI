@@ -26,7 +26,8 @@ with nidaqmx.Task() as photon_counter_task, nidaqmx.Task() as scanning_mirror_ta
                             channels["Photon Counter"]["counter_terminal"]),
         "Scanning Mirror": ScanningMirror(scanning_mirror_task,
                             channels["Scanning Mirror"]["x_channel"],
-                            channels["Scanning Mirror"]["y_channel"])
+                            channels["Scanning Mirror"]["y_channel"],
+                            channels["Scanning Mirror"]["V_range"])
     }
 
     scanning_mirror = DAQ["Scanning Mirror"]

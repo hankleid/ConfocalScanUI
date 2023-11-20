@@ -225,12 +225,13 @@ class MainApp(tk.Tk):
         ## [Event Handler] PREVENTS THE USER FROM INPUTTING VOLTAGE VALUES
         ## OUTSIDE THE RANGE SPECIFIED IN HardwareConfig.json.
         ##
-        voltage_range = self.DAQ["Scanning Mirror"]["V_range"]
-        voltage_min, voltage_max = voltage_range[0], voltage_range[1]
+        voltage_min, voltage_max = self.DAQ["Scanning Mirror"].getVoltageRange()
         if float(widget.get()) < voltage_min:
+            print(f"Voltages must be between {voltage_min}V and {voltage_max}V!")
             widget.delete(0, tk.END)
             widget.insert(0, str(voltage_min))
-        elif float(widget.get()) < voltage_max:
+        elif float(widget.get()) > voltage_max:
+            print(f"Voltages must be between {voltage_min}V and {voltage_max}V!")
             widget.delete(0, tk.END)
             widget.insert(0, str(voltage_max))
     
