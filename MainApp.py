@@ -199,15 +199,11 @@ class MainApp(tk.Tk):
         self.widgets["custom_coords_path"].config(text="")
 
         print("start")
-        x, y = self.winfo_screenwidth()//3, self.winfo_screenheight()//3
+        x, y = self.winfo_screenwidth()//4, self.winfo_screenheight()//4
         if self.scanwindow is not None:
             x, y = self.scanwindow.winfo_x(), self.scanwindow.winfo_y()
             self.scanwindow.destroy()
         self.scanwindow = ScanWindow(self, self.DAQ, x, y)
-        # Set scanwindow position to the same position as the previous scan.
-        # self.scanwindow.geometry("%dx%d+%d+%d" % (self.scanwindow.winfo_width(), # Don't change width or height.
-        #                                           self.scanwindow.winfo_height(), # Don't change width or height.
-        #                                           x, y))
         self.scanwindow.takeScan()
     
     def interruptScanEvent(self):
