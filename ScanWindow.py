@@ -44,14 +44,14 @@ class ScanWindow(tk.Toplevel):
     aspectratio = None # None if matplotlib default aspect ratio; scalar value if user-inputted.
     crosshair = False # True if there is supposed to be a crosshair (i.e. if a crosshair has ever been placed).
 
-    def __init__(self, app, DAQ, *args, **kwargs):
+    def __init__(self, app, DAQ, x_screen, y_screen, *args, **kwargs):
         tk.Toplevel.__init__(self, *args, **kwargs)
         self.resizable(False, False)
         self.protocol("WM_DELETE_WINDOW", self.onClosing)
         self.ID = self.generateScanID() # Timestamp (not currently used)
         self.title("Scan "+self.ID)
         self.controlmenu = app # Access control menu through this App object.
-        self.DAQ = DAQ # DAQ dcitionary that hosts the hardware.DAQ dcitionary that hosts the hardware.DAQ dcitionary that hosts the hardware.
+        self.DAQ = DAQ # DAQ dictionary that hosts the hardware.DAQ dcitionary that hosts the hardware.DAQ dcitionary that hosts the hardware.
         self.photon_counter = self.DAQ["Photon Counter"]
         self.scanning_mirror = self.DAQ["Scanning Mirror"]
 
@@ -102,6 +102,8 @@ class ScanWindow(tk.Toplevel):
             "x_step": x_step,
             "y_step": y_step
         }
+
+        self.geometry(f"+{x_screen}+{y_screen}") # Place the scanwindow at the specified coordinates on the screen.
         self.generateSideInfo()
         aspectratio = (self.xy_range[3]-self.xy_range[2]) / (self.xy_range[1]-self.xy_range[0])
         self.generatePlotHolder(aspectratio)
@@ -320,8 +322,6 @@ class ScanWindow(tk.Toplevel):
         canvas.draw()
         canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         self.widgets["plot_clicker"] = None # Callback ID for the mouse clicking matplotlib event.
-        if self.currently_scanning == False:
-            self.connectPlotClicker()
         self.plotWithColorbar()
 
     def generateScanID(self):
@@ -389,9 +389,10 @@ class ScanWindow(tk.Toplevel):
         if fast_scan == 1: # Fast scan. Only plot at the end.
             self.plotWithColorbar()
             
-        self.currently_scanning = False
         print("Scan done.")
-        self.controlmenu.interruptScanEvent()
+        if self.currently_scanning == True: # Scan has ended without pressing the interrupt button.
+            self.controlmenu.interruptScanEvent()
+            # Now self.currently_scanning is also False.
         self.save_data["scan_data"] = self.scan_data.tolist()
         # Enable buttons.
         self.widgets["cursor_center_button"].configure(state="normal")
@@ -438,6 +439,7 @@ class ScanWindow(tk.Toplevel):
         ##
         ## [Event Handler] MAKES CHANGES TO COLORBAR SETTINGS (MIN/MAX) & REFRESHES PLOT IF NECESSARY.
         ##
+        print(self.currently_scanning)
         if autoscale != None:
             self.autoscale = autoscale
         if aspectratio != False: # Used False instead of None because setting the aspect ratio to None is a real thing.
@@ -464,6 +466,7 @@ class ScanWindow(tk.Toplevel):
             lines = self.clearAnnotations()
             if aspectratio != False: # Need to remake figure if user has changed the aspect ratio.
                 self.generatePlotHolder((self.xy_range[3]-self.xy_range[2]) / (self.xy_range[1]-self.xy_range[0]) * self.aspectratio)
+                self.connectPlotClicker()
             self.plotWithColorbar()
             self.replotAnnotations(lines)
             if self.crosshair:
@@ -582,26 +585,30 @@ class ScanWindow(tk.Toplevel):
         ##
         lines = []
         for line in self.ax.lines:
-            lines.append(line.remove())
+            lines.append(line)
+        # Remove lines AFTER saving them all in 'lines' to avoid List displacement.
+        for i in range(len(self.ax.lines)):
+            self.ax.lines[-i].remove()
         self.canvas.draw()
-        return lines.reverse()
+        return list(reversed(lines))
 
     def replotAnnotations(self, lines):
         ##
         ## PLOTS ALL THE LINES IN lines. 
         ## lines IS A 1D ARRAY OF matplotlib 2DLine objects.
         ##
-        for l in lines:
-            self.ax.plot(l.get_xdata(),
-                            l.get_ydata(),
-                            color=l.get_color(),
-                            marker=l.get_marker(),
-                            markersize=l.get_markersize(),
-                            markerfacecolor=l.get_markerfacecolor(),
-                            markeredgewidth=l.get_markeredgewidth(),
-                            markeredgecolor=l.get_markeredgecolor(),
-                            linestyle=l.get_linestyle())
-        self.canvas.draw()
+        if lines != None:
+            for l in lines:
+                self.ax.plot(l.get_xdata(),
+                                l.get_ydata(),
+                                color=l.get_color(),
+                                marker=l.get_marker(),
+                                markersize=l.get_markersize(),
+                                markerfacecolor=l.get_markerfacecolor(),
+                                markeredgewidth=l.get_markeredgewidth(),
+                                markeredgecolor=l.get_markeredgecolor(),
+                                linestyle=l.get_linestyle())
+            self.canvas.draw()
 
     def plotCustomCoords(self, x_coords, y_coords):
         ##
@@ -787,8 +794,10 @@ class ScanWindow(tk.Toplevel):
         ## [Event Handler] CLOSES SCAN WINDOW & AJUSTS UI.
         ##
         if self.currently_scanning:
+            print("quit while scanning!")
             self.controlmenu.interruptScanEvent()
         self.controlmenu.widgets["custom_json_button"].configure(state="disabled")
+        self.controlmenu.scanwindow = None
         self.destroy()
         self.update()
     

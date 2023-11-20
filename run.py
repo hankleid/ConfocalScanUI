@@ -17,7 +17,9 @@ from PhotonCounter import *
 from ScanningMirror import *
 from MainApp import *
 
-channels = json.load(open('HardwareConfig.json'))
+channels = {}
+with open('HardwareConfig.json') as json_info:
+    channels = json.load(json_info)
 
 with nidaqmx.Task() as photon_counter_task, nidaqmx.Task() as scanning_mirror_task:
     DAQ = {
@@ -27,7 +29,7 @@ with nidaqmx.Task() as photon_counter_task, nidaqmx.Task() as scanning_mirror_ta
         "Scanning Mirror": ScanningMirror(scanning_mirror_task,
                             channels["Scanning Mirror"]["x_channel"],
                             channels["Scanning Mirror"]["y_channel"],
-                            channels["Scanning Mirror"]["V_range"])
+                            V_range=channels["Scanning Mirror"]["V_range"])
     }
 
     scanning_mirror = DAQ["Scanning Mirror"]
