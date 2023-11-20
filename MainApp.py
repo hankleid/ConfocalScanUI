@@ -192,7 +192,7 @@ class MainApp(tk.Tk):
 
     def startScanEvent(self):
         ##
-        ## [Event handler] STARTS SCAN.
+        ## [Event Handler] STARTS SCAN.
         ##
         self.disableWidgetInputs()
         self.widgets["interrupt_button"].config(state="normal")
@@ -212,7 +212,7 @@ class MainApp(tk.Tk):
     
     def interruptScanEvent(self):
         ##
-        ## [Event handler] INTERRUPTS SCAN.
+        ## [Event Handler] INTERRUPTS SCAN.
         ##
         self.enableWidgetInputs()
         self.widgets["interrupt_button"].config(state="disabled")
@@ -222,7 +222,7 @@ class MainApp(tk.Tk):
 
     def voltageBoundsEvent(self, widget):
         ##
-        ## [Event handler] PREVENTS THE USER FROM INPUTTING VOLTAGE VALUES
+        ## [Event Handler] PREVENTS THE USER FROM INPUTTING VOLTAGE VALUES
         ## OUTSIDE THE RANGE SPECIFIED IN HardwareConfig.json.
         ##
         voltage_range = self.DAQ["Scanning Mirror"]["V_range"]
