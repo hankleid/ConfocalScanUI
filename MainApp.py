@@ -49,6 +49,8 @@ class MainApp(tk.Tk):
         ent_x_end = tk.Entry(master=frm_x, width=6)
         ent_x_start.insert(0, "-1")
         ent_x_end.insert(0, "1")
+        ent_x_start.bind('<Return>', lambda e: self.voltageBoundsEvent(ent_x_start))
+        ent_x_end.bind('<Return>', lambda e: self.voltageBoundsEvent(ent_x_end))
         lbl_x_step = tk.Label(master=frm_x, text="step:", padx=1, pady=1)
         ent_x_step= tk.Entry(master=frm_x, width=8)
         ent_x_step.insert(0, "0.1")
@@ -73,6 +75,8 @@ class MainApp(tk.Tk):
         ent_y_end = tk.Entry(master=frm_y, width=6)
         ent_y_start.insert(0, "-1")
         ent_y_end.insert(0, "1")
+        ent_y_start.bind('<Return>', lambda e: self.voltageBoundsEvent(ent_y_start))
+        ent_y_end.bind('<Return>', lambda e: self.voltageBoundsEvent(ent_y_end))
         lbl_y_step = tk.Label(master=frm_y, text="step:", padx=1, pady=1)
         ent_y_step= tk.Entry(master=frm_y, width=8)
         ent_y_step.insert(0, "0.1")
@@ -195,9 +199,15 @@ class MainApp(tk.Tk):
         self.widgets["custom_coords_path"].config(text="")
 
         print("start")
+        x, y = 0, 0
         if self.scanwindow is not None:
+            x, y = self.scanwindow.winfo_x(), self.scanwindow.winfo_y()
             self.scanwindow.destroy()
         self.scanwindow = ScanWindow(self, self.DAQ)
+        # Set scanwindow position to the same position as the previous scan.
+        self.scanwindow.geometry("%dx%d+%d+%d" % (self.scanwindow.winfo_width(), # Don't change width or height.
+                                                  self.scanwindow.winfo_height(), # Don't change width or height.
+                                                  x, y))
         self.scanwindow.takeScan()
     
     def interruptScanEvent(self):
@@ -209,6 +219,20 @@ class MainApp(tk.Tk):
         self.widgets["custom_loop_button"].config(state="disabled")
         self.DAQ["Scanning Mirror"].stop()
         print("interrupt")
+
+    def voltageBoundsEvent(self, widget):
+        ##
+        ## [Event handler] PREVENTS THE USER FROM INPUTTING VOLTAGE VALUES
+        ## OUTSIDE THE RANGE SPECIFIED IN HardwareConfig.json.
+        ##
+        voltage_range = self.DAQ["Scanning Mirror"]["V_range"]
+        voltage_min, voltage_max = voltage_range[0], voltage_range[1]
+        if float(widget.get()) < voltage_min:
+            widget.delete(0, tk.END)
+            widget.insert(0, str(voltage_min))
+        elif float(widget.get()) < voltage_max:
+            widget.delete(0, tk.END)
+            widget.insert(0, str(voltage_max))
     
     def uploadJsonEvent(self):
         fn = str(askopenfilename())

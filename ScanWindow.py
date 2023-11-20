@@ -455,6 +455,7 @@ class ScanWindow(tk.Toplevel):
             # User min/max.
             self.colorbar_minmax[0] = float(self.widgets["user_min"].get())
             self.colorbar_minmax[1] = float(self.widgets["user_max"].get())
+            
         if not self.currently_scanning:
             # Only update plot if scan is done. While scan is currently running, the plot gets refreshed often enough.
             # Replot with new settings and replace crosshairs/annotations if they exist.
