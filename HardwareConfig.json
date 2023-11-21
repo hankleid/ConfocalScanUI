@@ -4,8 +4,8 @@
         "counter_terminal": "PFI0"
     },
     "Scanning Mirror": {
-        "x_channel": "Dev1/ao0",
-        "y_channel": "Dev1/ao1",
+        "x_channel": "Dev1/ao1",
+        "y_channel": "Dev1/ao0",
         "V_range": [-10, 10]
     }
 }

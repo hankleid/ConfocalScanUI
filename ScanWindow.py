@@ -354,7 +354,7 @@ class ScanWindow(tk.Toplevel):
                 if str(self.controlmenu.widgets["interrupt_button"]["state"]) == "disabled":
                     # If 'Interrupt' button is pressed, stop scan.
                     break
-                
+                print("this should not execute")
                 y_i = 0
                 # Change direction every column.
                 if x_i % 2 == 0: # Even: scan in the forward direction.
@@ -381,9 +381,12 @@ class ScanWindow(tk.Toplevel):
 
                     self.update()
                     self.update_idletasks()
-            
-            if fast_scan == 0: # Not a fast scan. Plot after every column.
-                self.plotWithColorbar() 
+            else:
+                # The following block does not execute if the inner loop was broken with 'break'.
+                if fast_scan == 0: # Not a fast scan. Plot after every column.
+                    self.plotWithColorbar() 
+                continue
+            break
         
         # Scan end.
         if fast_scan == 1: # Fast scan. Only plot at the end.
