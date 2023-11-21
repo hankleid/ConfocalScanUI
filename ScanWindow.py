@@ -354,7 +354,6 @@ class ScanWindow(tk.Toplevel):
                 if str(self.controlmenu.widgets["interrupt_button"]["state"]) == "disabled":
                     # If 'Interrupt' button is pressed, stop scan.
                     break
-                print("this should not execute")
                 y_i = 0
                 # Change direction every column.
                 if x_i % 2 == 0: # Even: scan in the forward direction.
