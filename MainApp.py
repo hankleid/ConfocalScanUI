@@ -54,6 +54,7 @@ class MainApp(tk.Tk):
         lbl_x_step = tk.Label(master=frm_x, text="step:", padx=1, pady=1)
         ent_x_step= tk.Entry(master=frm_x, width=8)
         ent_x_step.insert(0, "0.1")
+        ent_x_step.bind('<Return>', lambda e: self.voltageBoundsEvent(ent_x_step))
         self.widgets["x_start"] = ent_x_start
         self.widgets["x_end"] = ent_x_end
         self.widgets["x_step"] = ent_x_step
@@ -80,6 +81,7 @@ class MainApp(tk.Tk):
         lbl_y_step = tk.Label(master=frm_y, text="step:", padx=1, pady=1)
         ent_y_step= tk.Entry(master=frm_y, width=8)
         ent_y_step.insert(0, "0.1")
+        ent_y_step.bind('<Return>', lambda e: self.voltageBoundsEvent(ent_y_step))
         self.widgets["y_start"] = ent_y_start
         self.widgets["y_end"] = ent_y_end
         self.widgets["y_step"] = ent_y_step
@@ -156,6 +158,12 @@ class MainApp(tk.Tk):
         for i in range(len(widget_frames)):
             widget_frames[i].grid(column=0, row=i)
 
+        # Make sure the default voltage bounds are safe.
+        ws = self.widgets
+        for entry in [ws["x_start"], ws["x_end"], ws["x_step"],
+                       ws["y_start"], ws["y_end"], ws["y_step"]]:
+            self.voltageBoundsEvent(entry)
+
     def disableWidgetInputs(self):
         ##
         ## Disables all widgets in the control menu to user input.
@@ -198,11 +206,18 @@ class MainApp(tk.Tk):
         self.widgets["interrupt_button"].config(state="normal")
         self.widgets["custom_coords_path"].config(text="")
 
+        # Make sure the voltage bounds are safe.
+        ws = self.widgets
+        for entry in [ws["x_start"], ws["x_end"], ws["x_step"],
+                       ws["y_start"], ws["y_end"], ws["y_step"]]:
+            self.voltageBoundsEvent(entry)
+
         print("start")
         x, y = self.winfo_screenwidth()//4, self.winfo_screenheight()//4
         if self.scanwindow is not None:
             x, y = self.scanwindow.winfo_x(), self.scanwindow.winfo_y()
             self.scanwindow.destroy()
+
         self.scanwindow = ScanWindow(self, self.DAQ, x, y)
         self.scanwindow.takeScan()
     
