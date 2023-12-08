@@ -141,7 +141,7 @@ class ScanWindow(tk.Toplevel):
                                    values=["gray", "viridis", "plasma", "inferno", "magma", "cividis"],
                                    state="readonly",
                                    width=10)
-        cbox_colors.current(0) # Set default dropdown value to the first value of ^ list.
+        cbox_colors.current(4) # Set default dropdown value to the first value of ^ list.
         cbox_colors.bind("<<ComboboxSelected>>", lambda e: self.changePlotSettings())
         btn_replot = tk.Button(master=frm_plot_settings, text="Re-plot", command=self.onRePlot)
         frm_aspect = tk.Frame(master=frm_plot_settings, relief=tk.RAISED, borderwidth=0)
@@ -270,20 +270,11 @@ class ScanWindow(tk.Toplevel):
         self.widgets["savename"] = ent_savename
         lbl_savename.pack(padx=1, pady=1, side=tk.LEFT)
         ent_savename.pack(padx=1, pady=1, side=tk.LEFT)
-        frm_foldername = tk.Frame(master=frm_all_save_info, relief=tk.RAISED, borderwidth=0)
-        lbl_foldername_indicator = tk.Label(master=frm_foldername, text="folder:", padx=1, pady=1)       
-        lbl_foldername = tk.Label(master=frm_foldername, text=str(os.getcwd()), fg="blue", wraplength=250, padx=1, pady=1)       
-        lbl_foldername_indicator.pack(padx=1, pady=1, side=tk.LEFT)
-        lbl_foldername.pack(padx=1, pady=1, side=tk.LEFT)
-        self.widgets["folder"] = lbl_foldername
         frm_savebuttons = tk.Frame(master=frm_all_save_info, relief=tk.RAISED, borderwidth=0)
-        btn_selectfolder = tk.Button(master=frm_savebuttons, text="Select Folder", command=self.selectSaveFolder)
         btn_save = tk.Button(master=frm_savebuttons, text="Save", command=self.onSaveScan)
-        btn_selectfolder.pack(padx=1, pady=1, side=tk.LEFT)
         btn_save.pack(padx=1, pady=1, side=tk.LEFT)
         self.widgets["save_button"] = btn_save
         frm_savename.pack(padx=1, pady=1)
-        frm_foldername.pack(padx=1, pady=1)
         frm_savebuttons.pack(padx=1, pady=1)
 
         # Add to local grid (show).
@@ -715,12 +706,6 @@ class ScanWindow(tk.Toplevel):
         # Move the scanning mirror correspondingly.
         self.goToIndexPeak(next_index)
 
-    def selectSaveFolder(self):
-        ##
-        ## STORES THE USER-SELECTED PATH IN self.widgets.
-        ##
-        self.widgets["folder"].config(text=str(askdirectory()))
-
     def getName(self):
         ##
         ## RETURNS THE USER-INPUTTED FILENAME.
@@ -732,7 +717,7 @@ class ScanWindow(tk.Toplevel):
         ##
         ## RETURNS THE USER-SELECTED PATH AS A STRING.
         ##
-        return self.widgets["folder"].cget("text")
+        return self.controlmenu.widgets["folder"].cget("text")
     
     def getPath(self, suffix=None):
         ##

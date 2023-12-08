@@ -133,6 +133,26 @@ class MainApp(tk.Tk):
         self.widgets["fast_scan_checkbox"] = chkbox_fastscan
         chkbox_fastscan.pack(padx=5, pady=5, side=tk.LEFT)
 
+        # Save folder frame.
+        # Save settings frame.
+        frm_folder_info = tk.Frame(
+            master=self,
+            relief=tk.RAISED,
+            borderwidth=0
+        )
+        widget_frames.append(frm_folder_info)
+        frm_foldername = tk.Frame(master=frm_folder_info, relief=tk.RAISED, borderwidth=0)
+        lbl_foldername_indicator = tk.Label(master=frm_foldername, text="folder:", padx=1, pady=1)       
+        lbl_foldername = tk.Label(master=frm_foldername, text=str(os.getcwd()), fg="blue", wraplength=250, padx=1, pady=1)       
+        lbl_foldername_indicator.pack(padx=1, pady=1, side=tk.LEFT)
+        lbl_foldername.pack(padx=1, pady=1, side=tk.LEFT)
+        self.widgets["folder"] = lbl_foldername
+        frm_savebuttons = tk.Frame(master=frm_folder_info, relief=tk.RAISED, borderwidth=0)
+        btn_selectfolder = tk.Button(master=frm_savebuttons, text="Select Folder", command=self.selectSaveFolder)
+        btn_selectfolder.pack(padx=1, pady=1, side=tk.LEFT)
+        frm_foldername.pack(padx=1, pady=1)
+        frm_savebuttons.pack(padx=1, pady=1)
+
         # Custom coordinates frame.
         frm_customcoords = tk.Frame(
             master=self,
@@ -197,6 +217,12 @@ class MainApp(tk.Tk):
         self.widgets["y_end"].config(state='normal')
         self.widgets["y_step"].config(state='normal')
         self.widgets["int_time"].config(state='normal')
+
+    def selectSaveFolder(self):
+        ##
+        ## [Event Handler] STORES THE USER-SELECTED PATH IN self.widgets.
+        ##
+        self.widgets["folder"].config(text=str(askdirectory()))
 
     def startScanEvent(self):
         ##
