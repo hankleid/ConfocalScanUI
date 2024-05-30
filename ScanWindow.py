@@ -170,12 +170,13 @@ class ScanWindow(tk.Toplevel):
             borderwidth=0
         )
         sideinfo_frames.append(frm_counts)
-        lbl_counts = tk.Label(master=frm_counts, text="counts:", padx=1, pady=1)
+        lbl_counts = tk.Label(master=frm_counts, text="counts/s:", padx=1, pady=1)
         lbl_counts_measure = tk.Label(
             master=frm_counts,
             text="0",
             fg="red",
-            bg="white"
+            bg="white",
+            font = ('TkDefaultFont', 20)
         )
         self.widgets["counts"] = lbl_counts_measure
         lbl_counts.pack(padx=1, pady=1)
@@ -240,13 +241,15 @@ class ScanWindow(tk.Toplevel):
         btn_savepeaks.pack(padx=1, pady=1, side=tk.LEFT)
         frm_gopeak = tk.Frame(master=frm_peakfind, relief=tk.RAISED, borderwidth=0)
         lbl_gopeak = tk.Label(master=frm_gopeak, text="go to peak #:", padx=1, pady=1)
-        btn_gopeak = tk.Button(master=frm_gopeak, text="Next", command=self.goToNextPeak)
+        btn_backpeak = tk.Button(master=frm_gopeak, text="Back", command=lambda: self.goToNextPeak(-1))
+        btn_gopeak = tk.Button(master=frm_gopeak, text="Next", command=lambda: self.goToNextPeak(1))
         self.widgets["next_peak"] = btn_gopeak
         ent_gopeak = tk.Entry(master=frm_gopeak, width=5)
         ent_gopeak.insert(0, "0")
         ent_gopeak.bind('<Return>', lambda e: self.goToIndexPeak(int(self.widgets["peak_index"].get())))
         self.widgets["peak_index"] = ent_gopeak
         lbl_gopeak.pack(padx=1, pady=1, side=tk.LEFT)
+        btn_backpeak.pack(padx=1, pady=1, side=tk.LEFT)
         ent_gopeak.pack(padx=1, pady=1, side=tk.LEFT)
         btn_gopeak.pack(padx=1, pady=1, side=tk.LEFT)
 
@@ -383,6 +386,7 @@ class ScanWindow(tk.Toplevel):
             self.plotWithColorbar()
             
         print("Scan done.")
+        self.moveScanningMirror(0, 0)
         if self.currently_scanning == True: # Scan has ended without pressing the interrupt button.
             self.controlmenu.interruptScanEvent()
             # Now self.currently_scanning is also False.
@@ -495,8 +499,8 @@ class ScanWindow(tk.Toplevel):
             # Out of bounds.
             return
         else:
-            # Remove previous crosshair (if exists) then place the crosshair at the mouse click location.
             self.removeCrosshair()
+            # Remove previous crosshair (if exists) then place the crosshair at the mouse click location.
             self.placeCrosshair(e.xdata, e.ydata)
             if str(self.widgets["cursor_move_button"]["state"]) == "disabled":
                 self.widgets["cursor_move_button"].configure(state="normal")
@@ -517,6 +521,7 @@ class ScanWindow(tk.Toplevel):
         self.widgets["cursor_custom_x"].insert(0, str(x_coord))
         self.widgets["cursor_custom_y"].insert(0, str(y_coord))
         self.cursor_coordinates = [x_coord, y_coord]
+        self.takeMeasurement() # Update counts on sidebar.s
         self.crosshair = True
 
     def onEnterCrosshairCoords(self):
@@ -624,9 +629,10 @@ class ScanWindow(tk.Toplevel):
         detected_peaks = peak_local_max(self.scan_data,
                                         min_distance=int(self.widgets["peak_min_sep"].get()),
                                         threshold_abs=float(self.widgets["peak_threshold"].get())*np.mean(self.scan_data))
-        peak_y, peak_x = detected_peaks.T # Indices.
+        peak_x, peak_y = detected_peaks.T # Indices.
         x_coords = [self.x_axis[i] for i in peak_x]
         y_coords = [self.y_axis[i] for i in peak_y]
+        # Swap x and y (since imshow plot is transposed).
         self.ax.plot(x_coords, y_coords, "*", markersize=5.5, markerfacecolor="None", markeredgewidth=1, markeredgecolor="cyan")
         if self.crosshair:
             self.placeCrosshair(self.cursor_coordinates[0], self.cursor_coordinates[1])
@@ -689,9 +695,11 @@ class ScanWindow(tk.Toplevel):
         self.widgets["cursor_custom_y"].delete(0, tk.END)
         self.widgets["cursor_custom_x"].insert(0, str(x_coord))
         self.widgets["cursor_custom_y"].insert(0, str(y_coord))
+        self.removeCrosshair()
+        self.placeCrosshair(x_coord, y_coord)
         self.moveScanningMirror(x_coord, y_coord)
     
-    def goToNextPeak(self):
+    def goToNextPeak(self, inc):
         ##
         ## [Event Handler] INCREMEMNTS THE PEAK # IN THE UI THEN POINTS THE SCANNING
         ## MIRROR AT THAT NEXT PEAK.
@@ -699,7 +707,7 @@ class ScanWindow(tk.Toplevel):
         peaks_x_coords = self.save_data["peak_finding"]["peaks_x_coords"] # x or y arbitrary since the lists are the same length....
         current_index = int(self.widgets["peak_index"].get())
         # Wrap around list if necessary to get the next index.
-        next_index = (current_index + 1) % len(peaks_x_coords)
+        next_index = (current_index + inc) % len(peaks_x_coords)
         # Update the peak index entry widget with the new index.
         self.widgets["peak_index"].delete(0, tk.END)
         self.widgets["peak_index"].insert(0, str(next_index))
