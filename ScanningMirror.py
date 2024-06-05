@@ -39,4 +39,4 @@ class ScanningMirror():
         return self.voltage_range[0], self.voltage_range[1]
 
     def moveTo(self, x_voltage, y_voltage):
-        self.analog_task.write([x_voltage, y_voltage])
+        self.analog_task.write([-x_voltage, y_voltage])

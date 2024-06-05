@@ -41,7 +41,7 @@ class ScanWindow(tk.Toplevel):
     cursor_coordinates = [0,0] # Coordinates for the current placement of the clicked cursor.
     colorbar_minmax = [0,0] # Min and max values for the plotting colorbar.
     autoscale = True # True if autoscale; False if user input. For colorbar.
-    aspectratio = None # None if matplotlib default aspect ratio; scalar value if user-inputted.
+    aspectratio = 1.0
     crosshair = False # True if there is supposed to be a crosshair (i.e. if a crosshair has ever been placed).
 
     def __init__(self, app, DAQ, x_screen, y_screen, *args, **kwargs):
@@ -150,7 +150,7 @@ class ScanWindow(tk.Toplevel):
         ent_aspect.insert(0, "1.0") # Set to max X value; this means the ratio is default.
         ent_aspect.bind('<Return>', lambda e: self.changePlotSettings(aspectratio=float(ent_aspect.get())))
         self.widgets["aspectratio_entry"] = ent_aspect # Not currently used in the rest of the code, but storing just in case.
-        btn_aspect = tk.Button(master=frm_aspect, text="Reset", command=lambda: self.changePlotSettings(aspectratio=None))
+        btn_aspect = tk.Button(master=frm_aspect, text="Reset", command=lambda: self.changePlotSettings(aspectratio=1.0))
         self.widgets["aspectratio_button"] = btn_aspect # Not currently used in the rest of the code, but storing just in case.
         lbl_aspect.pack(padx=1, pady=1, side=tk.LEFT)
         ent_aspect.pack(padx=1, pady=1, side=tk.LEFT)
@@ -298,12 +298,13 @@ class ScanWindow(tk.Toplevel):
             width=50,
             height=50,
             relief=tk.RAISED,
-            bg="black")
+            bg="white")
         frm_plot.grid(column=0, row=0)
 
         # Initialize matplotlib figure.
         dimx = 9
         dimy = 7.5
+
         if aspectratio >= 1: # Portrait.
             dimx /= aspectratio
         else: # Landscape.
@@ -432,16 +433,17 @@ class ScanWindow(tk.Toplevel):
             self.widgets["save_peaks"].configure(state="disabled")
             self.controlmenu.widgets["custom_loop_button"].configure(state="disabled")
     
-    def changePlotSettings(self, autoscale=None, aspectratio=False):
+    def changePlotSettings(self, autoscale=None, aspectratio=None):
         ##
         ## [Event Handler] MAKES CHANGES TO COLORBAR SETTINGS (MIN/MAX) & REFRESHES PLOT IF NECESSARY.
         ##
         print(self.currently_scanning)
         if autoscale != None:
             self.autoscale = autoscale
-        if aspectratio != False: # Used False instead of None because setting the aspect ratio to None is a real thing.
+        if aspectratio != None:
             self.aspectratio = aspectratio
-            self.canvas.get_tk_widget().delete("all")
+            self.canvas.get_tk_widget().destroy()
+            # self.canvas.get_tk_widget().delete("all")
             if self.currently_scanning:
                 self.generatePlotHolder((self.xy_range[3]-self.xy_range[2]) / (self.xy_range[1]-self.xy_range[0]) * self.aspectratio)
 
@@ -461,7 +463,7 @@ class ScanWindow(tk.Toplevel):
             if self.crosshair:
                 self.removeCrosshair()
             lines = self.clearAnnotations()
-            if aspectratio != False: # Need to remake figure if user has changed the aspect ratio.
+            if aspectratio != None: # Need to remake figure if user has changed the aspect ratio.
                 self.generatePlotHolder((self.xy_range[3]-self.xy_range[2]) / (self.xy_range[1]-self.xy_range[0]) * self.aspectratio)
                 self.connectPlotClicker()
             self.plotWithColorbar()
@@ -521,7 +523,6 @@ class ScanWindow(tk.Toplevel):
         self.widgets["cursor_custom_x"].insert(0, str(x_coord))
         self.widgets["cursor_custom_y"].insert(0, str(y_coord))
         self.cursor_coordinates = [x_coord, y_coord]
-        self.takeMeasurement() # Update counts on sidebar.s
         self.crosshair = True
 
     def onEnterCrosshairCoords(self):
@@ -698,6 +699,7 @@ class ScanWindow(tk.Toplevel):
         self.removeCrosshair()
         self.placeCrosshair(x_coord, y_coord)
         self.moveScanningMirror(x_coord, y_coord)
+        print(f"({x_coord, y_coord})")
     
     def goToNextPeak(self, inc):
         ##
